@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reviewer"
+version = "1.0.0"
+description = "Local-first developer CLI for git diff analysis, security scanning, custom syntax guardrails, and GitHub PR generation"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Chris Mansourian" }
+]
+dependencies = [
+    "click>=8.0.0",
+    "rich>=13.0.0",
+]
+
+[project.scripts]
+reviewer = "reviewer.cli:main"
+reviewer-mcp = "reviewer.mcp_server:main"

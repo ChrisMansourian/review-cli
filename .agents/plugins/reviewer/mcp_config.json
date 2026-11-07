@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "reviewer": {
+      "command": "python",
+      "args": [
+        "-m",
+        "reviewer.mcp_server"
+      ],
+      "disabled": false
+    }
+  }
+}
