@@ -6,6 +6,7 @@ from reviewer.rules.secrets import SecretDetectionRule
 from reviewer.rules.debug_code import NoDebugCodeRule
 from reviewer.rules.style import StyleGuideRule
 from reviewer.rules.commit_message import CommitMessageRule
+from reviewer.rules.code_quality import CodeQualityRule
 
 __all__ = [
     "BaseRule",
@@ -17,4 +18,5 @@ __all__ = [
     "NoDebugCodeRule",
     "StyleGuideRule",
     "CommitMessageRule",
+    "CodeQualityRule",
 ]

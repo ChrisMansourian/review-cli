@@ -219,5 +219,151 @@ class TestCommitMessageRule(unittest.TestCase):
         self.assertIn("git/commit-message-too-long", rule_ids)
 
 
+class TestCodeQualityRule(unittest.TestCase):
+    """Tests for the Code Quality / Anti-AI-Slop rule."""
+
+    def setUp(self):
+        from reviewer.rules.code_quality import CodeQualityRule
+        self.rule = CodeQualityRule()
+
+    def _diff(self, path, lines):
+        from reviewer.models import FileDiff
+        return FileDiff(file_path=path, added_lines=lines)
+
+    # -- unnecessary else after return ---------------------------------------
+
+    def test_unnecessary_else_after_return_flagged(self):
+        diff = self._diff("src/auth.py", [
+            (1, "    return None"),
+            (2, "else:"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertIn("quality/unnecessary-else-after-return", ids)
+
+    def test_unnecessary_else_cstyle_flagged(self):
+        diff = self._diff("src/index.ts", [
+            (1, "        return value;"),
+            (2, "    } else {"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertIn("quality/unnecessary-else-after-return", ids)
+
+    def test_else_without_preceding_return_allowed(self):
+        diff = self._diff("src/index.ts", [
+            (1, "        doSomething();"),
+            (2, "    } else {"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertNotIn("quality/unnecessary-else-after-return", ids)
+
+    # -- complex elif chain -------------------------------------------------
+
+    def test_long_elif_chain_flagged(self):
+        diff = self._diff("src/handler.py", [
+            (1, "if action == 'create':"),
+            (2, "    create()"),
+            (3, "elif action == 'update':"),
+            (4, "    update()"),
+            (5, "elif action == 'delete':"),
+            (6, "    delete()"),
+            (7, "elif action == 'list':"),
+            (8, "    list_items()"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertIn("quality/complex-if-else-chain", ids)
+
+    def test_short_elif_chain_allowed(self):
+        diff = self._diff("src/handler.py", [
+            (1, "if action == 'create':"),
+            (2, "    create()"),
+            (3, "elif action == 'update':"),
+            (4, "    update()"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertNotIn("quality/complex-if-else-chain", ids)
+
+    def test_long_cstyle_else_if_chain_flagged(self):
+        diff = self._diff("src/router.ts", [
+            (1,  "if (method === 'GET') {"),
+            (2,  "} else if (method === 'POST') {"),
+            (3,  "} else if (method === 'PUT') {"),
+            (4,  "} else if (method === 'PATCH') {"),
+            (5,  "} else if (method === 'DELETE') {"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertIn("quality/complex-if-else-chain", ids)
+
+    # -- magic literal repetition -------------------------------------------
+
+    def test_repeated_literal_flagged(self):
+        diff = self._diff("src/config.py", [
+            (1, "    timeout = 30"),
+            (2, "    max_wait = 30"),
+            (3, "    retry_delay = 30"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertIn("quality/magic-literal-repetition", ids)
+
+    def test_repeated_string_literal_flagged(self):
+        diff = self._diff("src/routes.py", [
+            (1,  "    url = '/api/v1/users'"),
+            (2,  "    base = '/api/v1/users'"),
+            (3,  "    prefix = '/api/v1/users'"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertIn("quality/magic-literal-repetition", ids)
+
+    def test_common_literal_ignored(self):
+        """0 and 1 are too common to flag."""
+        diff = self._diff("src/loop.py", [
+            (1, "    i = 0"),
+            (2, "    j = 0"),
+            (3, "    k = 0"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertNotIn("quality/magic-literal-repetition", ids)
+
+    # -- duplicated adjacent lines ------------------------------------------
+
+    def test_duplicate_adjacent_lines_flagged(self):
+        diff = self._diff("src/setup.py", [
+            (1, "    db.execute(INSERT_USER_SQL, params)"),
+            (2, "    db.execute(INSERT_USER_SQL, params)"),
+            (3, "    db.execute(INSERT_USER_SQL, params)"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertIn("quality/duplicated-code-pattern", ids)
+
+    def test_varied_adjacent_lines_allowed(self):
+        diff = self._diff("src/setup.py", [
+            (1, "    db.execute(INSERT_USER_SQL, params)"),
+            (2, "    db.execute(INSERT_ROLE_SQL, role_params)"),
+            (3, "    db.execute(INSERT_PERM_SQL, perm_params)"),
+        ])
+        violations = self.rule.check(diff)
+        ids = [v.rule_id for v in violations]
+        self.assertNotIn("quality/duplicated-code-pattern", ids)
+
+    # -- markdown files skipped ---------------------------------------------
+
+    def test_markdown_files_skipped(self):
+        diff = self._diff("README.md", [
+            (1, "    return None"),
+            (2, "else:"),
+        ])
+        violations = self.rule.check(diff)
+        self.assertEqual(violations, [])
+
+
 if __name__ == "__main__":
     unittest.main()
