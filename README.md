@@ -152,6 +152,7 @@ reviewer --format markdown
 | `security/subprocess-shell-true` | **Subprocess shell=True** | `ERROR` | Flags `subprocess.run(..., shell=True)` susceptible to command injection. |
 | `style/mixed-indentation` | **Mixed Indentation** | `WARNING` | Detects lines mixing tabs and spaces. |
 | `style/line-too-long` | **Line Length Limit** | `INFO` | Flags added lines exceeding 120 characters. |
+| `git/commit-message-format` | **Clean & Clear Commits** | `WARNING` | Enforces short (<=72 chars), structured conventional commits telling what changed. Blocks vague commit messages. |
 
 ---
 

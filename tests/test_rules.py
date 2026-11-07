@@ -6,6 +6,7 @@ from reviewer.rules.curly_braces import CurlyBracesRule
 from reviewer.rules.secrets import SecretDetectionRule
 from reviewer.rules.debug_code import NoDebugCodeRule
 from reviewer.rules.style import StyleGuideRule
+from reviewer.rules.commit_message import CommitMessageRule
 
 
 class TestCurlyBracesRule(unittest.TestCase):
@@ -186,6 +187,36 @@ class TestStyleGuideRule(unittest.TestCase):
         violations = self.rule.check(diff)
         rule_ids = [v.rule_id for v in violations]
         self.assertIn("security/no-eval", rule_ids)
+
+
+class TestCommitMessageRule(unittest.TestCase):
+    def setUp(self):
+        self.rule = CommitMessageRule()
+
+    def test_clean_conventional_commit_passed(self):
+        commits = [
+            {"hash": "1234567", "subject": "feat: add user authentication", "author": "dev"}
+        ]
+        violations = self.rule.check_commits(commits)
+        self.assertEqual(len(violations), 0)
+
+    def test_vague_commit_flagged_as_error(self):
+        commits = [
+            {"hash": "1234567", "subject": "fixed stuff", "author": "dev"}
+        ]
+        violations = self.rule.check_commits(commits)
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0].rule_id, "git/commit-vague-message")
+        self.assertEqual(violations[0].severity, Severity.ERROR)
+
+    def test_overly_long_subject_flagged(self):
+        long_msg = "feat: " + "a" * 80
+        commits = [
+            {"hash": "1234567", "subject": long_msg, "author": "dev"}
+        ]
+        violations = self.rule.check_commits(commits)
+        rule_ids = [v.rule_id for v in violations]
+        self.assertIn("git/commit-message-too-long", rule_ids)
 
 
 if __name__ == "__main__":

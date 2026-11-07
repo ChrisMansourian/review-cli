@@ -5,6 +5,7 @@ from reviewer.rules.curly_braces import CurlyBracesRule
 from reviewer.rules.secrets import SecretDetectionRule
 from reviewer.rules.debug_code import NoDebugCodeRule
 from reviewer.rules.style import StyleGuideRule
+from reviewer.rules.commit_message import CommitMessageRule
 
 __all__ = [
     "BaseRule",
@@ -15,4 +16,5 @@ __all__ = [
     "SecretDetectionRule",
     "NoDebugCodeRule",
     "StyleGuideRule",
+    "CommitMessageRule",
 ]

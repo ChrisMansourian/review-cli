@@ -11,7 +11,7 @@ import sys
 import json
 import os
 from typing import Dict, Any, List
-from reviewer.git_diff import get_git_diff, parse_unified_diff
+from reviewer.git_diff import get_git_diff, parse_unified_diff, get_recent_commits
 from reviewer.rules.base import RuleRegistry
 from reviewer.rules.secrets import SecretDetectionRule
 from reviewer.rules.curly_braces import CurlyBracesRule
@@ -203,7 +203,8 @@ def handle_review_diff(args: Dict[str, Any]) -> Dict[str, Any]:
     file_diffs = parse_unified_diff(diff_text, repo_dir=repo_path)
 
     from reviewer.rules import default_registry
-    violations = default_registry.execute_all(file_diffs)
+    commits = get_recent_commits(count=5, repo_dir=repo_path)
+    violations = default_registry.execute_all(file_diffs, commits=commits)
 
     report = ReviewReport(
         target_ref=target_ref,

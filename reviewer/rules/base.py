@@ -17,6 +17,10 @@ class BaseRule(ABC):
         """Inspect changed lines in file_diff and return any detected violations."""
         pass
 
+    def check_commits(self, commits: List[Dict[str, str]]) -> List[Violation]:
+        """Optionally check git commits for quality, clarity, and formatting."""
+        return []
+
 
 class RuleRegistry:
     """Manages available and active rules."""
@@ -33,13 +37,23 @@ class RuleRegistry:
     def get_by_id(self, rule_id: str) -> BaseRule:
         return self._rules.get(rule_id)
 
-    def execute_all(self, file_diffs: List[FileDiff]) -> List[Violation]:
-        """Run all registered rules against every changed file."""
+    def execute_all(
+        self,
+        file_diffs: List[FileDiff],
+        commits: List[Dict[str, str]] = None,
+    ) -> List[Violation]:
+        """Run all registered rules against changed files and commits."""
         all_violations: List[Violation] = []
         for file_diff in file_diffs:
             for rule in self._rules.values():
                 violations = rule.check(file_diff)
                 all_violations.extend(violations)
+
+        if commits:
+            for rule in self._rules.values():
+                commit_violations = rule.check_commits(commits)
+                all_violations.extend(commit_violations)
+
         return all_violations
 
 

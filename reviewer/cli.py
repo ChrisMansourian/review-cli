@@ -6,7 +6,7 @@ from pathlib import Path
 import click
 from rich.console import Console
 
-from reviewer.git_diff import get_git_diff, parse_unified_diff
+from reviewer.git_diff import get_git_diff, parse_unified_diff, get_recent_commits
 from reviewer.rules import default_registry
 from reviewer.models import ReviewReport
 from reviewer.reporter import Reporter
@@ -83,9 +83,10 @@ def main(
 
     file_diffs = parse_unified_diff(diff_text, repo_dir=work_dir)
     total_added_lines = sum(len(fd.added_lines) for fd in file_diffs)
+    commits = get_recent_commits(count=5, repo_dir=work_dir)
 
     # Task 2: Local Security & Rule Enforcement Engine
-    violations = default_registry.execute_all(file_diffs)
+    violations = default_registry.execute_all(file_diffs, commits=commits)
 
     # Compile report
     report = ReviewReport(
