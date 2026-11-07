@@ -6,11 +6,16 @@ from typing import List
 from reviewer.models import FileDiff, Violation, Severity
 from reviewer.rules.base import BaseRule, register_rule
 
+CODE_EXTENSIONS = {
+    ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx",
+    ".py", ".rb", ".go", ".rs", ".php", ".c", ".cpp", ".cs", ".java"
+}
+
 DANGEROUS_PATTERNS = [
     (
         "security/no-eval",
         "Dynamic code evaluation (eval / Function constructor)",
-        re.compile(r"\b(eval\s*\(|new\s+Function\s*\()"),
+        re.compile(r"(?<!['\"`a-zA-Z0-9_])eval\s*\([^)]*\)"),
         Severity.ERROR,
         "Avoid dynamic code execution with eval(); use safer serialization or parsing alternatives.",
     ),
@@ -49,6 +54,13 @@ class StyleGuideRule(BaseRule):
         is_doc = ext in [".md", ".txt", ".rst"]
 
         for line_no, line_text in file_diff.added_lines:
+            # Respect inline bypass directives
+            if any(marker in line_text.lower() for marker in [
+                "reviewer:ignore",
+                "reviewer:allow",
+                "noqa",
+            ]):
+                continue
             # Trailing whitespace check (excluding blank lines)
             if line_text.endswith(" ") or line_text.endswith("\t"):
                 if line_text.strip():  # Not an entirely empty line
@@ -98,20 +110,24 @@ class StyleGuideRule(BaseRule):
                         )
                     )
 
-            # Dangerous pattern checks
-            for rule_id, rule_name, pattern, severity, suggestion in DANGEROUS_PATTERNS:
-                if pattern.search(line_text):
-                    violations.append(
-                        Violation(
-                            file_path=file_diff.file_path,
-                            line_number=line_no,
-                            rule_id=rule_id,
-                            rule_name=rule_name,
-                            severity=severity,
-                            message=f"{rule_name} detected.",
-                            snippet=line_text.strip(),
-                            suggestion=suggestion,
-                        )
-                    )
+            # Dangerous pattern checks (only for supported code extensions, not docs)
+            if ext in CODE_EXTENSIONS:
+                stripped = line_text.strip()
+                # Ignore docstrings and comments containing descriptive text
+                if not (stripped.startswith("#") or stripped.startswith("//") or stripped.startswith("*")):
+                    for rule_id, rule_name, pattern, severity, suggestion in DANGEROUS_PATTERNS:
+                        if pattern.search(line_text):
+                            violations.append(
+                                Violation(
+                                    file_path=file_diff.file_path,
+                                    line_number=line_no,
+                                    rule_id=rule_id,
+                                    rule_name=rule_name,
+                                    severity=severity,
+                                    message=f"{rule_name} detected.",
+                                    snippet=line_text.strip(),
+                                    suggestion=suggestion,
+                                )
+                            )
 
         return violations

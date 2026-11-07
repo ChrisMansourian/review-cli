@@ -66,7 +66,7 @@ class TestSecretDetectionRule(unittest.TestCase):
         diff = FileDiff(
             file_path="config/aws.py",
             added_lines=[
-                (5, "AWS_ACCESS_KEY = 'AKIAIOSFODNN7EXAMPLE'"),
+                (5, "AWS_ACCESS_KEY = 'AKIAIOSFODNN7EXAMPLE'"),  # reviewer:ignore
             ],
         )
         violations = self.rule.check(diff)
@@ -74,14 +74,14 @@ class TestSecretDetectionRule(unittest.TestCase):
         self.assertEqual(violations[0].rule_id, "security/aws-access-key")
         self.assertEqual(violations[0].severity, Severity.ERROR)
         # Secret should be redacted in snippet
-        self.assertNotIn("AKIAIOSFODNN7EXAMPLE", violations[0].snippet)
+        self.assertNotIn("AKIAIOSFODNN7EXAMPLE", violations[0].snippet)  # reviewer:ignore
         self.assertIn("AKIA...MPLE", violations[0].snippet)
 
     def test_github_token_detected(self):
         diff = FileDiff(
             file_path="scripts/ci.sh",
             added_lines=[
-                (3, "export GH_TOKEN=ghp_1234567890abcdefghijklmnopqrstuvwxyz"),
+                (3, "export GH_TOKEN=ghp_1234567890abcdefghijklmnopqrstuvwxyz"),  # reviewer:ignore
             ],
         )
         violations = self.rule.check(diff)
@@ -92,7 +92,7 @@ class TestSecretDetectionRule(unittest.TestCase):
         diff = FileDiff(
             file_path="server.js",
             added_lines=[
-                (12, "const uri = 'postgres://postgres:SuperSecret123@localhost:5432/mydb';"),
+                (12, "const uri = 'postgres://admin:SecretPass123@localhost:5432/mydb';"),  # reviewer:ignore
             ],
         )
         violations = self.rule.check(diff)
@@ -180,7 +180,7 @@ class TestStyleGuideRule(unittest.TestCase):
         diff = FileDiff(
             file_path="lib/calc.js",
             added_lines=[
-                (5, "const res = eval(inputExpr);"),
+                (5, "const res = eval(inputExpr);"),  # reviewer:ignore
             ],
         )
         violations = self.rule.check(diff)

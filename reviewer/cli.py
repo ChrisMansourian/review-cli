@@ -124,7 +124,10 @@ def main(
         )
         console.print(f"[green]✔ PR template generated at:[/green] [bold cyan]{pr_payload['file_path']}[/bold cyan]")
         console.print(f"[dim]PR Title:[/dim] [bold]{pr_payload['title']}[/bold]")
-        console.print(f"[dim]Ready for GitHub MCP server `create_pull_request` (head: {pr_payload['head']} -> base: {pr_payload['base']})[/dim]")
+        console.print(
+            f"[dim]Ready for GitHub MCP server `create_pull_request` "
+            f"(head: {pr_payload['head']} -> base: {pr_payload['base']})[/dim]"
+        )
 
     # Exit code determination
     if not report.passed:

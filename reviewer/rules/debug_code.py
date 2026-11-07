@@ -76,6 +76,10 @@ class NoDebugCodeRule(BaseRule):
 
     def check(self, file_diff: FileDiff) -> List[Violation]:
         ext = os.path.splitext(file_diff.file_path)[1].lower()
+        # Documentation and config files don't execute debug code
+        if ext in [".md", ".txt", ".rst", ".json", ".yaml", ".yml", ".toml"]:
+            return []
+
         violations: List[Violation] = []
 
         # Don't flag print() in test scripts or CLI entrypoints where print is intentional
@@ -102,6 +106,12 @@ class NoDebugCodeRule(BaseRule):
                 if rule_id in ("quality/no-console-log", "quality/no-debugger") and ext not in (
                     ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".vue", ".svelte"
                 ):
+                    continue
+                # Skip rust dbg for non-rust files
+                if rule_id == "quality/no-rust-dbg" and ext != ".rs":
+                    continue
+                # Skip var_dump for non-php/ruby files
+                if rule_id == "quality/no-var-dump" and ext not in (".php", ".rb"):
                     continue
 
                 match = pattern.search(line_text)

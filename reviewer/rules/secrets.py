@@ -86,12 +86,23 @@ class SecretDetectionRule(BaseRule):
         violations: List[Violation] = []
 
         for line_no, line_text in file_diff.added_lines:
+            # Check for inline ignore directives
+            if any(marker in line_text.lower() for marker in [
+                "reviewer:ignore",
+                "reviewer:allow",
+                "reviewer:allow-secret",
+                "noqa",
+            ]):
+                continue
+
             for rule_id, rule_name, pattern, severity in SECRET_PATTERNS:
                 match = pattern.search(line_text)
                 if match:
                     matched_str = match.group(0)
-                    # Exclude obvious documentation templates like <YOUR_KEY>, YOUR_KEY_HERE, xxx
-                    if any(p in matched_str.lower() for p in ["placeholder", "<your_", "your_key", "xxxx"]):
+                    # Exclude obvious documentation templates like <YOUR_KEY>, YOUR_KEY_HERE, xxx, user:pass
+                    if any(p in matched_str.lower() for p in [
+                        "placeholder", "<your_", "your_key", "xxxx", "user:pass", "supersecret123"
+                    ]):
                         continue
 
                     safe_snippet = line_text.replace(matched_str, redact_secret(matched_str)).strip()

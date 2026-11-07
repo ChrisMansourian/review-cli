@@ -24,7 +24,10 @@ from reviewer.pr_generator import generate_pr_payload
 TOOLS = [
     {
         "name": "review_security_vulnerabilities",
-        "description": "Programmatically scans changed files/diffs for hardcoded secrets, API tokens, private keys, and critical security vulnerabilities.",
+        "description": (
+            "Programmatically scans changed files/diffs for hardcoded secrets, "
+            "API tokens, private keys, and security vulnerabilities."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -45,7 +48,10 @@ TOOLS = [
     },
     {
         "name": "check_style_guide",
-        "description": "Executes syntax and style checks, enforcing curly braces on control structures, line length, indentation, and flagging leftover debug code/TODOs.",
+        "description": (
+            "Executes syntax and style checks, enforcing curly braces on control structures, "
+            "line length, indentation, and flagging leftover debug code/TODOs."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -66,7 +72,10 @@ TOOLS = [
     },
     {
         "name": "generate_pr_template",
-        "description": "Analyzes git commits and diffs, drafts a formal Pull Request description, and prepares payload for GitHub create_pull_request tool.",
+        "description": (
+            "Analyzes git commits and diffs, drafts a formal Pull Request description, "
+            "and prepares payload for GitHub create_pull_request tool."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -83,7 +92,10 @@ TOOLS = [
     },
     {
         "name": "review_diff",
-        "description": "Runs full local code review pipeline (security, style, curly braces) and updates .reviewer/report.md.",
+        "description": (
+            "Runs full local code review pipeline (security, style, curly braces) "
+            "and updates .reviewer/report.md."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {

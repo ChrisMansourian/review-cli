@@ -36,7 +36,8 @@ class Reporter:
         if not report.violations:
             self.console.print(
                 Panel(
-                    "[bold green]✔ All checks passed! No security vulnerabilities or rule violations detected.[/bold green]",
+                    "[bold green]✔ All checks passed! No security vulnerabilities "
+                    "or rule violations detected.[/bold green]",
                     border_style="green",
                 )
             )

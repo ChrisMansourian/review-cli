@@ -106,7 +106,8 @@ def generate_pr_payload(
     if report:
         if report.passed:
             body_lines.append(
-                f"- ✅ **Security & Quality:** PASSED (0 Critical Errors, {report.warning_count} Warnings in {report.files_analyzed} files)"
+                f"- ✅ **Security & Quality:** PASSED (0 Errors, "
+                f"{report.warning_count} Warnings in {report.files_analyzed} files)"
             )
         else:
             body_lines.append(
