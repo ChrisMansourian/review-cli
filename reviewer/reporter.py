@@ -77,8 +77,15 @@ class Reporter:
         self.console.print()
 
         # Summary footer panel
-        status_color = "red" if not report.passed else "yellow" if report.warning_count > 0 else "green"
-        status_word = "FAILED" if not report.passed else "PASSED WITH WARNINGS" if report.warning_count > 0 else "PASSED"
+        if not report.passed:
+            status_color = "red"
+            status_word = "FAILED"
+        elif report.warning_count > 0:
+            status_color = "yellow"
+            status_word = "PASSED WITH WARNINGS"
+        else:
+            status_color = "green"
+            status_word = "PASSED"
 
         summary_text = (
             f"Status: [bold {status_color}]{status_word}[/bold {status_color}]  |  "

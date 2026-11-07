@@ -52,7 +52,10 @@ SECRET_PATTERNS: List[Tuple[str, str, re.Pattern, Severity]] = [
     (
         "security/generic-secret",
         "Potential Hardcoded API Key or Secret",
-        re.compile(r"(?i)\b(api_key|apikey|secret_key|client_secret|auth_token)\s*[:=]\s*['\"][a-zA-Z0-9_\-\.\/+=]{20,}['\"]"),
+        re.compile(
+            r"(?i)\b(api_key|apikey|secret_key|client_secret|auth_token)"
+            r"\s*[:=]\s*['\"][a-zA-Z0-9_\-\.\/+=]{20,}['\"]"
+        ),
         Severity.WARNING,
     ),
 ]

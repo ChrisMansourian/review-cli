@@ -113,8 +113,9 @@ class StyleGuideRule(BaseRule):
             # Dangerous pattern checks (only for supported code extensions, not docs)
             if ext in CODE_EXTENSIONS:
                 stripped = line_text.strip()
-                # Ignore docstrings and comments containing descriptive text
-                if not (stripped.startswith("#") or stripped.startswith("//") or stripped.startswith("*")):
+                # Ignore string literals, docstrings, and comments
+                if not (stripped.startswith("#") or stripped.startswith("//") or stripped.startswith("*")
+                        or stripped.startswith('"') or stripped.startswith("'")):
                     for rule_id, rule_name, pattern, severity, suggestion in DANGEROUS_PATTERNS:
                         if pattern.search(line_text):
                             violations.append(

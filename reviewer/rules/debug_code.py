@@ -56,7 +56,7 @@ DEBUG_PATTERNS: List[Tuple[str, str, re.Pattern, Severity, str]] = [
     (
         "quality/no-todo-comments",
         "Unresolved TODO / FIXME / HACK comment",
-        re.compile(r"(?i)\b(TODO|FIXME|HACK|XXX)\b\s*[:\-]?(.*)"),
+        re.compile(r"(?i)(?://|#|/\*|\*)\s*(TODO|FIXME|HACK|XXX)\b\s*[:\-]?(.*)"),
         Severity.INFO,
         "Resolve this pending item or create a tracked issue/ticket instead of leaving inline TODOs.",
     ),

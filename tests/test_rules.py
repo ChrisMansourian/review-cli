@@ -130,7 +130,7 @@ class TestNoDebugCodeRule(unittest.TestCase):
         diff = FileDiff(
             file_path="src/service.py",
             added_lines=[
-                (45, "# TODO: Implement rate limiting"),
+                (45, "# TODO: Implement rate limiting"),  # reviewer:ignore
             ],
         )
         violations = self.rule.check(diff)
