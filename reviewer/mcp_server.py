@@ -10,7 +10,7 @@ Exposes:
 import sys
 import json
 import os
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from reviewer.git_diff import get_git_diff, parse_unified_diff, get_recent_commits
 from reviewer.rules.base import RuleRegistry
 from reviewer.rules.secrets import SecretDetectionRule
@@ -230,6 +230,82 @@ def handle_review_diff(args: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _result(req_id: Any, result: Dict[str, Any]) -> Dict[str, Any]:
+    return {"jsonrpc": "2.0", "id": req_id, "result": result}
+
+
+def _unknown_tool(name: Any) -> Dict[str, Any]:
+    return {
+        "content": [{"type": "text", "text": f"Unknown tool: {name}"}],
+        "isError": True,
+    }
+
+
+def _handle_initialize(req_id: Any, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    return _result(
+        req_id,
+        {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {"tools": {}},
+            "serverInfo": {"name": "reviewer-mcp-server", "version": "1.0.0"},
+        },
+    )
+
+
+def _handle_initialized(req_id: Any, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    return None
+
+
+def _handle_tools_list(req_id: Any, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    return _result(req_id, {"tools": TOOLS})
+
+
+def _handle_tools_call(req_id: Any, params: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    tool_name = params.get("name")
+    tool_args = params.get("arguments", {})
+    if not isinstance(tool_args, dict):
+        tool_args = {}
+    handler = _TOOL_HANDLERS.get(tool_name) if isinstance(tool_name, str) else None
+    if handler is None:
+        return _result(req_id, _unknown_tool(tool_name))
+    return _result(req_id, handler(tool_args))
+
+
+_TOOL_HANDLERS = {
+    "review_security_vulnerabilities": handle_review_security,
+    "check_style_guide": handle_check_style,
+    "generate_pr_template": handle_generate_pr,
+    "review_diff": handle_review_diff,
+}
+
+_METHOD_HANDLERS = {
+    "initialize": _handle_initialize,
+    "notifications/initialized": _handle_initialized,
+    "tools/list": _handle_tools_list,
+    "tools/call": _handle_tools_call,
+}
+
+
+def handle_request(request: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Process one JSON-RPC request; return the response, or None for notifications."""
+    if not isinstance(request, dict):
+        return None
+    req_id = request.get("id")
+    method = request.get("method")
+    params = request.get("params", {})
+    if not isinstance(params, dict):
+        params = {}
+
+    handler = _METHOD_HANDLERS.get(method) if isinstance(method, str) else None
+    if handler is None:
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "error": {"code": -32601, "message": f"Method not found: {method}"},
+        }
+    return handler(req_id, params)
+
+
 def main():
     """Stdio JSON-RPC server loop."""
     for line in sys.stdin:
@@ -240,57 +316,14 @@ def main():
         except Exception:
             continue
 
-        req_id = req.get("id")
-        method = req.get("method")
-        params = req.get("params", {})
-
-        if method == "initialize":
-            resp = {
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "result": {
-                    "protocolVersion": "2024-11-05",
-                    "capabilities": {"tools": {}},
-                    "serverInfo": {"name": "reviewer-mcp-server", "version": "1.0.0"},
-                },
-            }
-        elif method == "notifications/initialized":
+        resp = handle_request(req)
+        if resp is None:
             continue
-        elif method == "tools/list":
-            resp = {
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "result": {"tools": TOOLS},
-            }
-        elif method == "tools/call":
-            tool_name = params.get("name")
-            tool_args = params.get("arguments", {})
-
-            if tool_name == "review_security_vulnerabilities":
-                result = handle_review_security(tool_args)
-            elif tool_name == "check_style_guide":
-                result = handle_check_style(tool_args)
-            elif tool_name == "generate_pr_template":
-                result = handle_generate_pr(tool_args)
-            elif tool_name == "review_diff":
-                result = handle_review_diff(tool_args)
-            else:
-                result = {
-                    "content": [{"type": "text", "text": f"Unknown tool: {tool_name}"}],
-                    "isError": True,
-                }
-
-            resp = {"jsonrpc": "2.0", "id": req_id, "result": result}
-        else:
-            resp = {
-                "jsonrpc": "2.0",
-                "id": req_id,
-                "error": {"code": -32601, "message": f"Method not found: {method}"},
-            }
-
         sys.stdout.write(json.dumps(resp) + "\n")
         sys.stdout.flush()
 
 
 if __name__ == "__main__":
     main()
+
+
