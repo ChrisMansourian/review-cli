@@ -17,6 +17,7 @@ from reviewer.models import ReviewReport
 from reviewer.reporter import Reporter
 from reviewer.formats import generate_github, generate_sarif_json
 from reviewer.pr_generator import generate_pr_payload
+from reviewer.hooks import install_hook, uninstall_hook
 from reviewer.rule_docs import RuleRow, build_rows, find_playbook, find_row, suggest_ids
 
 _CONTEXT = dict(help_option_names=["-h", "--help"])
@@ -284,6 +285,23 @@ def explain_command(rule_id, repo_path, config_path):
         raise click.ClickException(message + " Run 'reviewer rules' to list all rules.")
     playbook = find_playbook(repo_path or os.getcwd(), rule_id)
     click.echo("\n".join(_explain_lines(row, playbook)))
+
+
+
+@main.command("install-hook", context_settings=_CONTEXT)
+@click.option("--path", "repo_path", default=None,
+              type=click.Path(exists=True, file_okay=False, dir_okay=True),
+              help="Directory inside the repository (defaults to current working directory).")
+@click.option("--force", is_flag=True, default=False,
+              help="Replace an existing pre-commit hook (the old one is saved as pre-commit.bak).")
+@click.option("--uninstall", is_flag=True, default=False,
+              help="Remove the hook, but only if reviewer installed it.")
+def install_hook_command(repo_path, force, uninstall):
+    """Install (or remove) a git pre-commit hook that runs `reviewer --staged`."""
+    start_dir = repo_path or os.getcwd()
+    messages = uninstall_hook(start_dir) if uninstall else install_hook(start_dir, force=force)
+    for message in messages:
+        click.echo(message, err=True)
 
 
 if __name__ == "__main__":

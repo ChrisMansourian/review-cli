@@ -1,0 +1,7 @@
+- id: reviewer
+  name: reviewer
+  description: Run reviewer on staged changes (security, syntax and refactor guardrails).
+  entry: reviewer --staged
+  language: python
+  pass_filenames: false
+  stages: [pre-commit]

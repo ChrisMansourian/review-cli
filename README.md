@@ -255,6 +255,30 @@ Baseline: `reviewer --update-baseline` writes `.reviewer-baseline.json` at the r
 
 ---
 
+## Pre-commit integration
+
+Run `reviewer --staged` before every commit, either with the [pre-commit](https://pre-commit.com) framework:
+
+```yaml
+repos:
+  - repo: https://github.com/ChrisMansourian/review-cli
+    rev: main          # pin a tag or commit
+    hooks:
+      - id: reviewer
+```
+
+or with a plain hook:
+
+```bash
+reviewer install-hook              # writes <repo>/.git/hooks/pre-commit
+reviewer install-hook --force      # replace an existing hook (old one saved as pre-commit.bak)
+reviewer install-hook --uninstall  # remove it (only if reviewer wrote it)
+```
+
+The hook is a POSIX `sh` script (it also works in Git Bash on Windows) that runs `reviewer --staged`, falling back to `python -m reviewer.cli --staged` when `reviewer` is not on `PATH`. The hooks directory is resolved with `git rev-parse --git-path hooks`, so worktrees and `core.hooksPath` are respected; use `--path DIR` to target a repo other than the current directory.
+
+---
+
 ## 🤖 AI Assistant & MCP Integration Layer
 
 ### Exposing Tools via MCP Server
