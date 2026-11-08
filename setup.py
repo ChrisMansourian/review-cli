@@ -7,6 +7,7 @@ setup(
     install_requires=[
         "click>=8.0.0",
         "rich>=13.0.0",
+        "tomli>=2; python_version < '3.11'",
     ],
     entry_points={
         "console_scripts": [

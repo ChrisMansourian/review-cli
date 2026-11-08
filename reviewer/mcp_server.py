@@ -11,6 +11,7 @@ import sys
 import json
 import os
 from typing import Dict, Any, List, Optional
+from reviewer.config import apply_config
 from reviewer.git_diff import get_git_diff, parse_unified_diff, get_recent_commits
 from reviewer.rules.base import RuleRegistry
 from reviewer.rules.secrets import SecretDetectionRule
@@ -109,8 +110,16 @@ TOOLS = [
 ]
 
 
-def handle_review_security(args: Dict[str, Any]) -> Dict[str, Any]:
+def _activate_repo(args: Dict[str, Any]) -> str:
+    """Resolve repo_path and activate its config as the CLI does; warnings go to stderr."""
     repo_path = args.get("repo_path") or os.getcwd()
+    for warning in apply_config(repo_path):
+        sys.stderr.write(f"warning: {warning}" + os.linesep)
+    return repo_path
+
+
+def handle_review_security(args: Dict[str, Any]) -> Dict[str, Any]:
+    repo_path = _activate_repo(args)  # reviewer:ignore one call per MCP handler
     diff_text, base_ref, target_ref = get_git_diff(
         base=args.get("base"),
         staged=args.get("staged", False),
@@ -139,7 +148,7 @@ def handle_review_security(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_check_style(args: Dict[str, Any]) -> Dict[str, Any]:
-    repo_path = args.get("repo_path") or os.getcwd()
+    repo_path = _activate_repo(args)  # reviewer:ignore one call per MCP handler
     diff_text, base_ref, target_ref = get_git_diff(
         base=args.get("base"),
         staged=args.get("staged", False),
@@ -170,7 +179,7 @@ def handle_check_style(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_generate_pr(args: Dict[str, Any]) -> Dict[str, Any]:
-    repo_path = args.get("repo_path") or os.getcwd()
+    repo_path = _activate_repo(args)  # reviewer:ignore one call per MCP handler
     diff_text, base_ref, target_ref = get_git_diff(repo_dir=repo_path)
     file_diffs = parse_unified_diff(diff_text, repo_dir=repo_path)
 
@@ -193,7 +202,7 @@ def handle_generate_pr(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handle_review_diff(args: Dict[str, Any]) -> Dict[str, Any]:
-    repo_path = args.get("repo_path") or os.getcwd()
+    repo_path = _activate_repo(args)  # reviewer:ignore one call per MCP handler
     strict = args.get("strict", False)
     diff_text, base_ref, target_ref = get_git_diff(
         base=args.get("base"),

@@ -1,7 +1,9 @@
 """Base classes and registry for reviewer custom rules."""
 
 from abc import ABC, abstractmethod
-from typing import List, Dict, Type
+from dataclasses import replace
+from typing import List, Dict, Optional, Type
+from reviewer.config import ReviewerConfig, get_config
 from reviewer.models import FileDiff, Violation, Severity
 
 
@@ -41,8 +43,14 @@ class RuleRegistry:
         self,
         file_diffs: List[FileDiff],
         commits: List[Dict[str, str]] = None,
+        config: Optional[ReviewerConfig] = None,
     ) -> List[Violation]:
-        """Run all registered rules against changed files and commits."""
+        """Run all registered rules against changed files and commits.
+
+        ``disable`` and ``severity`` overrides from ``config`` (default: the
+        active config) are applied to the resulting violations by rule_id.
+        """
+        cfg = config if config is not None else get_config()
         all_violations: List[Violation] = []
         for file_diff in file_diffs:
             for rule in self._rules.values():
@@ -54,7 +62,19 @@ class RuleRegistry:
                 commit_violations = rule.check_commits(commits)
                 all_violations.extend(commit_violations)
 
-        return all_violations
+        return self._apply_config(all_violations, cfg)
+
+    @staticmethod
+    def _apply_config(violations: List[Violation], cfg: ReviewerConfig) -> List[Violation]:
+        result: List[Violation] = []
+        for violation in violations:
+            if cfg.is_disabled(violation.rule_id):
+                continue
+            override = cfg.severity.get(violation.rule_id)
+            if override is not None and override != violation.severity:
+                violation = replace(violation, severity=override)
+            result.append(violation)
+        return result
 
 
 # Global default registry

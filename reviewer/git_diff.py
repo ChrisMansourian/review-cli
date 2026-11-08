@@ -5,6 +5,7 @@ import re
 import subprocess
 from pathlib import Path
 from typing import List, Optional, Tuple, Dict
+from reviewer.config import get_config
 from reviewer.models import FileDiff
 
 # Files and extensions to ignore by default to preserve tokens and focus on reviewable code
@@ -196,7 +197,7 @@ def parse_unified_diff(diff_text: str, repo_dir: Optional[str] = None) -> List[F
     for fd in file_diffs:
         if fd.status == "deleted":
             continue
-        if is_ignored_file(fd.file_path):
+        if is_ignored_file(fd.file_path) or get_config().is_path_ignored(fd.file_path):
             continue
 
         # Attempt to read full file content for context when needed by multi-line checks

@@ -6,7 +6,9 @@ import os
 from pathlib import Path
 import click
 from rich.console import Console
+from rich.markup import escape
 
+from reviewer.config import apply_config
 from reviewer.git_diff import get_git_diff, parse_unified_diff, get_recent_commits
 from reviewer.rules import default_registry
 from reviewer.models import ReviewReport
@@ -27,6 +29,13 @@ def _make_streams_safe() -> None:
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.option(
+    "--config",
+    "config_path",
+    default=None,
+    type=click.Path(dir_okay=False),
+    help="Explicit config file (pyproject.toml uses [tool.reviewer]; other files are .reviewer.toml style).",
+)
 @click.option(
     "--strict",
     is_flag=True,
@@ -70,6 +79,7 @@ def _make_streams_safe() -> None:
     help="Repository directory path (defaults to current working directory).",
 )
 def main(
+    config_path: str,
     strict: bool,
     pr: bool,
     staged: bool,
@@ -86,6 +96,9 @@ def main(
     console = Console()
     status_console = Console(stderr=True)
     work_dir = repo_path or os.getcwd()
+
+    for warning in apply_config(work_dir, config_path):
+        status_console.print(f"[yellow]warning:[/yellow] {escape(warning)}", highlight=False)
 
     # Task 1: Git Context Analysis
     diff_text, base_ref, target_ref = get_git_diff(
