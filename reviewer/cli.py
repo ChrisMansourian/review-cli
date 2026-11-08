@@ -3,19 +3,25 @@
 import json
 import sys
 import os
-from pathlib import Path
+from typing import Any, Dict, List
 import click
 from rich.console import Console
 from rich.markup import escape
+from rich.table import Table
 
 from reviewer.baseline import apply_baseline, load_baseline, write_baseline
-from reviewer.config import apply_config
+from reviewer.config import apply_config, get_config
 from reviewer.git_diff import get_git_diff, parse_unified_diff, get_recent_commits
 from reviewer.rules import default_registry
 from reviewer.models import ReviewReport
 from reviewer.reporter import Reporter
 from reviewer.formats import generate_github, generate_sarif_json
 from reviewer.pr_generator import generate_pr_payload
+from reviewer.hooks import install_hook, uninstall_hook
+from reviewer.rule_docs import RuleRow, build_rows, find_playbook, find_row, suggest_ids
+
+_CONTEXT = dict(help_option_names=["-h", "--help"])
+_DEFAULT_COMMAND = "review"
 
 
 def _make_streams_safe() -> None:
@@ -30,126 +36,94 @@ def _make_streams_safe() -> None:
                 reconfigure(errors="replace")
 
 
-@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.option(
-    "--config",
-    "config_path",
-    default=None,
-    type=click.Path(dir_okay=False),
-    help="Explicit config file (pyproject.toml uses [tool.reviewer]; other files are .reviewer.toml style).",
-)
-@click.option(
-    "--strict",
-    is_flag=True,
-    default=False,
-    help="Strict mode: Exit with code 1 on ANY rule violation (including warnings).",
-)
-@click.option(
-    "--pr",
-    is_flag=True,
-    default=False,
-    help="Generate Pull Request description template based on diff & commits.",
-)
-@click.option(
-    "--staged",
-    is_flag=True,
-    default=False,
-    help="Inspect staged git changes only (git diff --cached).",
-)
-@click.option(
-    "--base",
-    default=None,
-    help="Base git reference/branch to compare against (e.g. origin/main, main).",
-)
-@click.option(
-    "--target",
-    default=None,
-    help="Target git reference/branch (defaults to current HEAD or working directory).",
-)
-@click.option(
-    "--format",
-    "output_format",
-    type=click.Choice(["table", "json", "markdown", "sarif", "github"], case_sensitive=False),
-    default="table",
-    help="Terminal output format.",
-)
-@click.option(
-    "--path",
-    "repo_path",
-    default=None,
-    type=click.Path(exists=True, file_okay=False, dir_okay=True),
-    help="Repository directory path (defaults to current working directory).",
-)
-@click.option(
-    "--update-baseline",
-    is_flag=True,
-    default=False,
-    help="Write current findings to .reviewer-baseline.json so later runs hide them.",
-)
-@click.option(
-    "--no-baseline",
-    is_flag=True,
-    default=False,
-    help="Ignore .reviewer-baseline.json and report every finding.",
-)
-def main(
-    update_baseline: bool,
-    no_baseline: bool,
-    config_path: str,
-    strict: bool,
-    pr: bool,
-    staged: bool,
-    base: str,
-    target: str,
-    output_format: str,
-    repo_path: str,
-):
-    """
-    Reviewer: Local-first developer tool for git diff inspection,
-    security scanning, custom syntax enforcement, and PR generation.
-    """
-    _make_streams_safe()
-    console = Console()
-    status_console = Console(stderr=True)
-    work_dir = repo_path or os.getcwd()
+class _ReviewDefaultGroup(click.Group):
+    """Group that runs the ``review`` command when no subcommand is named.
 
-    for warning in apply_config(work_dir, config_path):
-        status_console.print(f"[yellow]warning:[/yellow] {escape(warning)}", highlight=False)
+    ``reviewer --staged`` therefore keeps working exactly as before the CLI
+    gained subcommands; only ``-h/--help`` and known subcommand names are
+    handled by the group itself.
+    """
 
-    # Task 1: Git Context Analysis
+    def parse_args(self, ctx: click.Context, args: List[str]) -> List[str]:
+        first = args[0] if args else None
+        if first is None or (first not in self.commands and first not in ctx.help_option_names):
+            args = [_DEFAULT_COMMAND] + list(args)
+        return super().parse_args(ctx, args)
+
+
+@click.group(
+    cls=_ReviewDefaultGroup,
+    context_settings=_CONTEXT,
+    help=(
+        "Reviewer: Local-first developer tool for git diff inspection, "
+        "security scanning, custom syntax enforcement, and PR generation.\n\n"
+        "Run with no subcommand (or with review options such as --staged or "
+        "--base) to review a diff; see 'reviewer review --help' for those options."
+    ),
+)
+def main() -> None:
+    """Dispatch to a subcommand; ``review`` is the default."""
+
+
+def _review_options(func):
+    """Attach the review options (shared by ``review`` and the default route)."""
+    options = [
+        click.option("--config", "config_path", default=None, type=click.Path(dir_okay=False),
+                     help="Explicit config file (pyproject.toml: [tool.reviewer]; else .reviewer.toml style)."),
+        click.option("--strict", is_flag=True, default=False,
+                     help="Strict mode: Exit with code 1 on ANY rule violation (including warnings)."),
+        click.option("--pr", is_flag=True, default=False,
+                     help="Generate Pull Request description template based on diff & commits."),
+        click.option("--staged", is_flag=True, default=False,
+                     help="Inspect staged git changes only (git diff --cached)."),
+        click.option("--base", default=None,
+                     help="Base git reference/branch to compare against (e.g. origin/main, main)."),
+        click.option("--target", default=None,
+                     help="Target git reference/branch (defaults to current HEAD or working directory)."),
+        click.option("--format", "output_format", default="table",
+                     type=click.Choice(["table", "json", "markdown", "sarif", "github"], case_sensitive=False),
+                     help="Terminal output format."),
+        click.option("--path", "repo_path", default=None,
+                     type=click.Path(exists=True, file_okay=False, dir_okay=True),
+                     help="Repository directory path (defaults to current working directory)."),
+        click.option("--update-baseline", is_flag=True, default=False,
+                     help="Write current findings to .reviewer-baseline.json so later runs hide them."),
+        click.option("--no-baseline", is_flag=True, default=False,
+                     help="Ignore .reviewer-baseline.json and report every finding."),
+    ]
+    for option in reversed(options):
+        func = option(func)
+    return func
+
+
+def _collect_report(opts: Dict[str, Any], work_dir: str):
+    """Diff, run every rule, apply the baseline. Returns (report, file_diffs, baselined)."""
     diff_text, base_ref, target_ref = get_git_diff(
-        base=base,
-        target=target,
-        staged=staged,
+        base=opts["base"],
+        target=opts["target"],
+        staged=opts["staged"],
         repo_dir=work_dir,
     )
-
     file_diffs = parse_unified_diff(diff_text, repo_dir=work_dir)
-    total_added_lines = sum(len(fd.added_lines) for fd in file_diffs)
     commits = get_recent_commits(count=5, repo_dir=work_dir)
-
-    # Task 2: Local Security & Rule Enforcement Engine
     violations = default_registry.execute_all(file_diffs, commits=commits)
 
     baselined_count = 0
-    if not no_baseline and not update_baseline:
+    if not opts["no_baseline"] and not opts["update_baseline"]:
         violations, baselined_count = apply_baseline(violations, load_baseline(work_dir))
 
-    # Compile report
     report = ReviewReport(
         target_ref=target_ref,
         base_ref=base_ref,
         files_analyzed=len(file_diffs),
-        lines_analyzed=total_added_lines,
+        lines_analyzed=sum(len(fd.added_lines) for fd in file_diffs),
         violations=violations,
-        strict=strict,
+        strict=opts["strict"],
     )
+    return report, file_diffs, baselined_count
 
-    # Task 3: Feedback Output & State Storage
-    reporter = Reporter(console=console)
-    md_file, json_file = reporter.save_reports(report, base_dir=work_dir)
 
-    # Terminal rendering
+def _render_report(report: ReviewReport, reporter: Reporter, output_format: str) -> None:
     if output_format == "json":
         click.echo(json.dumps(report.to_dict(), indent=2))
     elif output_format == "markdown":
@@ -163,36 +137,171 @@ def main(
     else:
         reporter.print_terminal_summary(report)
 
-    status_console.print(f"[dim]Saved reports to:[/dim] [cyan]{md_file}[/cyan] [dim]and[/dim] [cyan]{json_file}[/cyan]")
 
+def _emit_pr(pr_console: Console, file_diffs, report: ReviewReport, *, work_dir: str, base) -> None:
+    pr_console.print()
+    pr_console.print("[bold magenta]📝 Generating Pull Request Description...[/bold magenta]")
+    pr_payload = generate_pr_payload(
+        file_diffs=file_diffs,
+        report=report,
+        repo_dir=work_dir,
+        base_branch=base,
+    )
+    pr_console.print(f"[green]✔ PR template generated at:[/green] [bold cyan]{pr_payload['file_path']}[/bold cyan]")
+    pr_console.print(f"[dim]PR Title:[/dim] [bold]{pr_payload['title']}[/bold]")
+    pr_console.print(
+        f"[dim]Ready for GitHub MCP server `create_pull_request` "
+        f"(head: {pr_payload['head']} -> base: {pr_payload['base']})[/dim]"
+    )
+
+
+@main.command("review", context_settings=_CONTEXT)
+@_review_options
+def review(**opts):
+    """
+    Review a git diff: security scanning, custom syntax enforcement, PR generation.
+
+    This is the default command: `reviewer --staged` equals `reviewer review --staged`.
+    """
+    _make_streams_safe()
+    console = Console()
+    status_console = Console(stderr=True)
+    work_dir = opts["repo_path"] or os.getcwd()
+
+    for warning in apply_config(work_dir, opts["config_path"]):
+        status_console.print(f"[yellow]warning:[/yellow] {escape(warning)}", highlight=False)
+
+    report, file_diffs, baselined_count = _collect_report(opts, work_dir)
+
+    reporter = Reporter(console=console)
+    md_file, json_file = reporter.save_reports(report, base_dir=work_dir)
+    _render_report(report, reporter, opts["output_format"])
+
+    status_console.print(f"[dim]Saved reports to:[/dim] [cyan]{md_file}[/cyan] [dim]and[/dim] [cyan]{json_file}[/cyan]")
     if baselined_count:
         status_console.print(f"[dim]{baselined_count} baselined findings hidden[/dim]")
-    if update_baseline:
-        baseline_file = write_baseline(work_dir, violations)
+    if opts["update_baseline"]:
+        baseline_file = write_baseline(work_dir, report.violations)
         status_console.print(f"[dim]Wrote baseline to:[/dim] [cyan]{escape(baseline_file)}[/cyan]")
 
-    # PR Description generation if requested
-    if pr:
-        pr_console = console if output_format == "table" else status_console
-        pr_console.print()
-        pr_console.print("[bold magenta]📝 Generating Pull Request Description...[/bold magenta]")
-        pr_payload = generate_pr_payload(
-            file_diffs=file_diffs,
-            report=report,
-            repo_dir=work_dir,
-            base_branch=base,
-        )
-        pr_console.print(f"[green]✔ PR template generated at:[/green] [bold cyan]{pr_payload['file_path']}[/bold cyan]")
-        pr_console.print(f"[dim]PR Title:[/dim] [bold]{pr_payload['title']}[/bold]")
-        pr_console.print(
-            f"[dim]Ready for GitHub MCP server `create_pull_request` "
-            f"(head: {pr_payload['head']} -> base: {pr_payload['base']})[/dim]"
-        )
+    if opts["pr"]:
+        pr_console = console if opts["output_format"] == "table" else status_console
+        _emit_pr(pr_console, file_diffs, report, work_dir=work_dir, base=opts["base"])
 
-    # Exit code determination
-    if not report.passed:
-        sys.exit(1)
-    sys.exit(0)
+    sys.exit(0 if report.passed else 1)
+
+
+# --- reviewer rules / reviewer explain ---------------------------------------
+
+_SEVERITY_STYLE = {"ERROR": "red", "WARNING": "yellow", "INFO": "cyan"}
+
+
+def _load_rows(repo_path, config_path) -> List[RuleRow]:
+    work_dir = repo_path or os.getcwd()
+    for warning in apply_config(work_dir, config_path):
+        click.echo(f"warning: {warning}", err=True)
+    return build_rows(default_registry, get_config())
+
+
+def _severity_cell(row: RuleRow) -> str:
+    if row.disabled:
+        return "[dim]disabled[/dim]"
+    style = _SEVERITY_STYLE.get(row.effective_severity, "white")
+    marker = " *" if row.overridden else ""
+    return f"[{style}]{row.effective_severity}{marker}[/{style}]"
+
+
+def _print_rules_table(rows: List[RuleRow]) -> None:
+    table = Table(show_header=True, header_style="bold")
+    table.add_column("ID", no_wrap=True)
+    table.add_column("Severity", no_wrap=True)
+    table.add_column("Name")
+    for row in rows:
+        table.add_row(escape(row.info.rule_id), _severity_cell(row), escape(row.info.name))
+    Console(highlight=False).print(table)
+    if any(row.overridden for row in rows):
+        click.echo("* severity overridden by config", err=True)
+
+
+_PATH_OPTION = click.option(
+    "--path", "repo_path", default=None,
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    help="Repository directory path (defaults to current working directory).",
+)
+_CONFIG_OPTION = click.option(
+    "--config", "config_path", default=None, type=click.Path(dir_okay=False),
+    help="Explicit config file.",
+)
+
+
+@main.command("rules", context_settings=_CONTEXT)
+@click.option("--format", "output_format", default="table",
+              type=click.Choice(["table", "json"], case_sensitive=False), help="Output format.")
+@_PATH_OPTION
+@_CONFIG_OPTION
+def rules_command(output_format, repo_path, config_path):
+    """List every rule ID with its effective severity (config overrides applied)."""
+    _make_streams_safe()
+    rows = _load_rows(repo_path, config_path)
+    if output_format.lower() == "json":
+        click.echo(json.dumps([row.to_dict() for row in rows], indent=2))
+    else:
+        _print_rules_table(rows)
+
+
+def _explain_lines(row: RuleRow, playbook) -> List[str]:
+    severity = row.effective_severity
+    if row.overridden:
+        severity += f" (config override; default {row.info.severity.value})"
+    lines = [
+        f"{row.info.rule_id}",
+        f"Name:        {row.info.name}",
+        f"Severity:    {severity}",
+    ]
+    if row.disabled:
+        lines.append("Status:      disabled by config")
+    lines.append(f"Description: {row.info.description}")
+    if row.info.suggestion:
+        lines.append(f"Suggestion:  {row.info.suggestion}")
+    if playbook is not None:
+        lines.append(f"Playbook:    {playbook[0]}:{playbook[1]}")
+    return lines
+
+
+@main.command("explain", context_settings=_CONTEXT)
+@click.argument("rule_id")
+@_PATH_OPTION
+@_CONFIG_OPTION
+def explain_command(rule_id, repo_path, config_path):
+    """Explain one rule: severity, description, suggestion and refactor playbook."""
+    _make_streams_safe()
+    rows = _load_rows(repo_path, config_path)
+    row = find_row(rows, rule_id)
+    if row is None:
+        message = f"unknown rule ID '{rule_id}'."
+        close = suggest_ids(rows, rule_id)
+        if close:
+            message += " Did you mean: " + ", ".join(close) + "?"
+        raise click.ClickException(message + " Run 'reviewer rules' to list all rules.")
+    playbook = find_playbook(repo_path or os.getcwd(), rule_id)
+    click.echo("\n".join(_explain_lines(row, playbook)))
+
+
+
+@main.command("install-hook", context_settings=_CONTEXT)
+@click.option("--path", "repo_path", default=None,
+              type=click.Path(exists=True, file_okay=False, dir_okay=True),
+              help="Directory inside the repository (defaults to current working directory).")
+@click.option("--force", is_flag=True, default=False,
+              help="Replace an existing pre-commit hook (the old one is saved as pre-commit.bak).")
+@click.option("--uninstall", is_flag=True, default=False,
+              help="Remove the hook, but only if reviewer installed it.")
+def install_hook_command(repo_path, force, uninstall):
+    """Install (or remove) a git pre-commit hook that runs `reviewer --staged`."""
+    start_dir = repo_path or os.getcwd()
+    messages = uninstall_hook(start_dir) if uninstall else install_hook(start_dir, force=force)
+    for message in messages:
+        click.echo(message, err=True)
 
 
 if __name__ == "__main__":

@@ -4,7 +4,7 @@ import os
 import re
 from typing import List, Tuple
 from reviewer.models import FileDiff, Violation, Severity
-from reviewer.rules.base import BaseRule, register_rule
+from reviewer.rules.base import BaseRule, RuleInfo, register_rule
 
 DEBUG_PATTERNS: List[Tuple[str, str, re.Pattern, Severity, str]] = [
     # JavaScript / TypeScript
@@ -73,6 +73,12 @@ class NoDebugCodeRule(BaseRule):
         "frequently left behind during rapid AI prototyping."
     )
     severity = Severity.WARNING
+
+    def catalog(self) -> List[RuleInfo]:
+        return [
+            RuleInfo(rule_id, name, severity, name, suggestion)
+            for rule_id, name, _pattern, severity, suggestion in DEBUG_PATTERNS
+        ]
 
     def check(self, file_diff: FileDiff) -> List[Violation]:
         ext = os.path.splitext(file_diff.file_path)[1].lower()

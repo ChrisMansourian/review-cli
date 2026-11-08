@@ -4,7 +4,7 @@ import os
 import re
 from typing import List
 from reviewer.models import FileDiff, Violation, Severity
-from reviewer.rules.base import BaseRule, register_rule
+from reviewer.rules.base import BaseRule, RuleInfo, register_rule
 
 CURLY_SUPPORTED_EXTENSIONS = {
     ".js", ".jsx", ".mjs", ".cjs",
@@ -37,6 +37,12 @@ class CurlyBracesRule(BaseRule):
         "introducing indentation bugs and style violations. Explicit braces are required."
     )
     severity = Severity.ERROR
+
+    def catalog(self) -> List[RuleInfo]:
+        return [RuleInfo(
+            self.rule_id, self.name, self.severity, self.description,
+            "Wrap the statement body in curly braces: if (...) { ... }",
+        )]
 
     def check(self, file_diff: FileDiff) -> List[Violation]:
         ext = os.path.splitext(file_diff.file_path)[1].lower()

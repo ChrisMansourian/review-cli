@@ -5,7 +5,7 @@ import re
 from typing import List
 from reviewer.models import FileDiff, Violation, Severity
 from reviewer.config import get_config
-from reviewer.rules.base import BaseRule, register_rule
+from reviewer.rules.base import BaseRule, RuleInfo, register_rule
 
 CODE_EXTENSIONS = {
     ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx",
@@ -37,6 +37,27 @@ class StyleGuideRule(BaseRule):
     name = "Style Guide Compliance"
     description = "Checks line length, trailing whitespace, and indentation consistency."
     severity = Severity.WARNING
+
+    def catalog(self) -> List[RuleInfo]:
+        return [
+            RuleInfo(
+                "style/trailing-whitespace", "Trailing Whitespace", Severity.INFO,
+                "Line contains trailing whitespace.", "Remove trailing spaces/tabs.",
+            ),
+            RuleInfo(
+                "style/mixed-indentation", "Mixed Indentation", Severity.WARNING,
+                "Line mixes tabs and spaces for indentation.",
+                "Standardize indentation to either spaces or tabs.",
+            ),
+            RuleInfo(
+                "style/line-too-long", "Line Exceeds Length Limit", Severity.INFO,
+                "Added line is longer than the configured maximum (default 120).",
+                "Wrap or refactor the line.",
+            ),
+        ] + [
+            RuleInfo(rule_id, name, severity, name, suggestion)
+            for rule_id, name, _pattern, severity, suggestion in DANGEROUS_PATTERNS
+        ]
 
     def check(self, file_diff: FileDiff) -> List[Violation]:
         violations: List[Violation] = []

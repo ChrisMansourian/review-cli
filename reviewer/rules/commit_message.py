@@ -3,7 +3,7 @@
 import re
 from typing import List, Dict
 from reviewer.models import FileDiff, Violation, Severity
-from reviewer.rules.base import BaseRule, register_rule
+from reviewer.rules.base import BaseRule, RuleInfo, register_rule
 
 # Common conventional commit types
 CONVENTIONAL_TYPES = {
@@ -38,6 +38,25 @@ class CommitMessageRule(BaseRule):
     severity = Severity.WARNING
 
     MAX_SUBJECT_LENGTH = 72
+
+    def catalog(self) -> List[RuleInfo]:
+        return [
+            RuleInfo(
+                "git/commit-vague-message", "Vague Commit Message", Severity.ERROR,
+                "Commit subject is too vague to say what changed (e.g. 'update', 'wip').",
+                "Rewrite as '<type>: <clear summary of what was changed>'.",
+            ),
+            RuleInfo(
+                "git/commit-message-too-long", "Commit Subject Too Long", Severity.WARNING,
+                "Commit subject exceeds 72 characters.",
+                "Keep the subject under 72 characters; use the body for extra context.",
+            ),
+            RuleInfo(
+                "git/commit-unstructured-format", "Unstructured Commit Subject", Severity.INFO,
+                "Commit subject does not follow conventional commit format.",
+                "Use a prefix like 'feat:', 'fix:', 'refactor:', 'docs:', or an imperative verb.",
+            ),
+        ]
 
     def check(self, file_diff: FileDiff) -> List[Violation]:
         # Commit rules check commits rather than file diffs

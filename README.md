@@ -141,6 +141,14 @@ reviewer --format sarif > reviewer.sarif
 reviewer --format github
 ```
 
+### 7. Discover and Explain Rules
+```bash
+reviewer rules                 # table of every rule ID, severity and name
+reviewer rules --format json   # machine-readable list
+reviewer explain quality/deep-nesting
+```
+`reviewer rules` honours `[tool.reviewer]` config: overridden severities are marked with `*` and disabled rules are shown as `disabled`. `reviewer explain <rule-id>` prints the description and suggestion, plus the matching playbook heading in `.agents/skills/refactor/SKILL.md` when one exists; an unknown ID exits non-zero with "did you mean" suggestions. All existing options still work without a subcommand (`reviewer --staged` is shorthand for `reviewer review --staged`).
+
 SARIF notes: paths are repo-relative with forward slashes; each result carries a
 `primaryLocationLineHash` fingerprint so GitHub dedupes across runs. Commit-message
 violations have no file, so they are emitted without `locations` (the sha is in
@@ -195,6 +203,10 @@ Baseline: `reviewer --update-baseline` writes `.reviewer-baseline.json` at the r
 | `security/aws-access-key` | **AWS Access Key** | `ERROR` | Scans diff additions for exposed AWS Access Key IDs (`AKIA...`). Automatically redacts in logs. |
 | `security/github-token` | **GitHub Token** | `ERROR` | Detects hardcoded GitHub personal access tokens (`ghp_...`, `github_pat_...`). |
 | `security/private-key` | **Private Key** | `ERROR` | Flags committed RSA/EC/OPENSSH/PGP private keys. |
+| `security/aws-secret-key` | **AWS Secret Key** | `ERROR` | Detects `aws_secret_access_key = "..."` assignments. |
+| `security/slack-token` | **Slack Token** | `ERROR` | Flags Slack bot/user tokens (`xoxb-...`). |
+| `security/jwt-token` | **Hardcoded JWT** | `WARNING` | Flags JSON Web Tokens committed in source. |
+| `security/generic-secret` | **Generic Secret** | `WARNING` | `api_key`/`client_secret`/`auth_token` assigned a long literal. |
 | `security/connection-string-credential` | **Connection String Password** | `ERROR` | Flags database connection URLs containing embedded user credentials (`postgres://user:pass@host`). |
 | `quality/no-console-log` | **No console.log** | `WARNING` | Detects leftover `console.log` statements in JS/TS diffs (allow with `// reviewer:allow-debug`). |
 | `quality/no-debugger` | **No Debugger** | `ERROR` | Flags interactive `debugger;` breakpoints left in the diff. |
@@ -231,9 +243,39 @@ Baseline: `reviewer --update-baseline` writes `.reviewer-baseline.json` at the r
 | `security/weak-hash` | **Weak Hash** | `WARNING` | `hashlib.md5/sha1` and `createHash('md5'/'sha1')` (skipped with `usedforsecurity=False`). |
 | `quality/unexplained-suppression` | **Unexplained Suppression** | `WARNING` | `# type: ignore`, `# noqa`, `// @ts-ignore`, `// eslint-disable` with neither a rule code nor a reason. |
 | `quality/ts-any` | **TypeScript any** | `INFO` | `: any`, `as any`, `<any>` in `.ts`/`.tsx`. |
+| `quality/no-breakpoint` | **No Breakpoint** | `ERROR` | Flags `breakpoint()`, `pdb.set_trace()` and `import pdb`. |
+| `quality/no-var-dump` | **No Debug Dump** | `ERROR` | PHP/Ruby `var_dump`, `dd`, `print_r`, `binding.pry`. |
+| `quality/no-rust-dbg` | **No dbg!()** | `WARNING` | Leftover `dbg!()` macro in Rust. |
+| `style/trailing-whitespace` | **Trailing Whitespace** | `INFO` | Added lines ending in spaces or tabs. |
 | `style/mixed-indentation` | **Mixed Indentation** | `WARNING` | Detects lines mixing tabs and spaces. |
 | `style/line-too-long` | **Line Length Limit** | `INFO` | Flags added lines exceeding 120 characters. |
-| `git/commit-message-format` | **Clean & Clear Commits** | `WARNING` | Enforces short (<=72 chars), structured conventional commits telling what changed. Blocks vague commit messages. |
+| `git/commit-vague-message` | **Vague Commit Message** | `ERROR` | Blocks subjects like `update`, `wip`, `fixed stuff`; say what changed. |
+| `git/commit-message-too-long` | **Commit Subject Too Long** | `WARNING` | Subject line longer than 72 characters. |
+| `git/commit-unstructured-format` | **Unstructured Commit Subject** | `INFO` | Subject without a conventional `type:` prefix or imperative verb. |
+
+---
+
+## Pre-commit integration
+
+Run `reviewer --staged` before every commit, either with the [pre-commit](https://pre-commit.com) framework:
+
+```yaml
+repos:
+  - repo: https://github.com/ChrisMansourian/review-cli
+    rev: main          # pin a tag or commit
+    hooks:
+      - id: reviewer
+```
+
+or with a plain hook:
+
+```bash
+reviewer install-hook              # writes <repo>/.git/hooks/pre-commit
+reviewer install-hook --force      # replace an existing hook (old one saved as pre-commit.bak)
+reviewer install-hook --uninstall  # remove it (only if reviewer wrote it)
+```
+
+The hook is a POSIX `sh` script (it also works in Git Bash on Windows) that runs `reviewer --staged`, falling back to `python -m reviewer.cli --staged` when `reviewer` is not on `PATH`. The hooks directory is resolved with `git rev-parse --git-path hooks`, so worktrees and `core.hooksPath` are respected; use `--path DIR` to target a repo other than the current directory.
 
 ---
 
