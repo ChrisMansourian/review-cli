@@ -13,7 +13,7 @@ from typing import List, Tuple
 
 from reviewer.models import FileDiff, Violation, Severity
 from reviewer.config import get_config
-from reviewer.rules.base import BaseRule, register_rule
+from reviewer.rules.base import BaseRule, RuleInfo, register_rule
 
 CODE_EXTENSIONS = {
     ".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx",
@@ -60,6 +60,30 @@ class CodeQualityRule(BaseRule):
         "and duplicated adjacent code blocks."
     )
     severity = Severity.WARNING
+
+    def catalog(self) -> List[RuleInfo]:
+        return [
+            RuleInfo(
+                "quality/unnecessary-else-after-return", "Unnecessary Else After Return", Severity.WARNING,
+                "``else`` block is redundant after an unconditional return/raise/throw.",
+                "Use an early-return guard: return inside the if, then fall through.",
+            ),
+            RuleInfo(
+                "quality/complex-if-else-chain", "Complex If/Elif Chain", Severity.WARNING,
+                "Long if/elif chain that a dict lookup, match statement or polymorphism would simplify.",
+                "Replace the chain with a dispatch dict or a match statement.",
+            ),
+            RuleInfo(
+                "quality/magic-literal-repetition", "Magic Literal Repetition", Severity.INFO,
+                "The same string or number literal appears repeatedly across added lines.",
+                "Extract the literal to a named constant.",
+            ),
+            RuleInfo(
+                "quality/duplicated-code-pattern", "Duplicated Code Pattern", Severity.WARNING,
+                "Several adjacent near-identical lines suggest copy-pasted logic.",
+                "Extract the repeated pattern into a function and call it with the varying arguments.",
+            ),
+        ]
 
     # --- patterns -----------------------------------------------------------
 

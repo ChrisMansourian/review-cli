@@ -17,7 +17,7 @@ from typing import Callable, Dict, Iterator, List, Optional, Set, Tuple
 
 from reviewer.models import FileDiff, Severity, Violation
 from reviewer.config import get_config
-from reviewer.rules.base import BaseRule, register_rule
+from reviewer.rules.base import BaseRule, RuleInfo, register_rule
 from reviewer.rules.code_quality import CODE_EXTENSIONS, _is_bypass
 
 Line = Tuple[int, str]
@@ -139,6 +139,32 @@ GOD_FUNCTION = _Smell(
     "Function body is too long.",
     "Split it by responsibility so the top-level function reads like a table of contents.",
 )
+
+
+SMELLS = (
+    BOOLEAN_RETURN,
+    NESTED_TERNARY,
+    DEEP_NESTING,
+    LONG_PARAMS,
+    MUTABLE_DEFAULT,
+    BARE_EXCEPT,
+    SWALLOWED_EXCEPTION,
+    NON_IDIOMATIC_COMPARISON,
+    LOOSE_EQUALITY,
+    RANGE_LEN_LOOP,
+    MANUAL_ACCUMULATION,
+    STRING_CONCAT,
+    AWAIT_IN_LOOP,
+    UNREACHABLE_CODE,
+    COLLAPSIBLE_IF,
+    COMMENTED_OUT_CODE,
+    NARRATING_COMMENT,
+    GOD_FUNCTION,
+)
+
+
+def smell_catalog(smells: Tuple[_Smell, ...]) -> List[RuleInfo]:
+    return [RuleInfo(s.rule_id, s.name, s.severity, s.message, s.suggestion) for s in smells]
 
 
 # --- shared regexes ---------------------------------------------------------
@@ -328,6 +354,9 @@ class RefactorPatternsRule(BaseRule):
         "oversized functions, and non-idiomatic loops/comparisons."
     )
     severity = Severity.WARNING
+
+    def catalog(self) -> List[RuleInfo]:
+        return smell_catalog(SMELLS)
 
     def check(self, file_diff: FileDiff) -> List[Violation]:
         ext = os.path.splitext(file_diff.file_path)[1].lower()

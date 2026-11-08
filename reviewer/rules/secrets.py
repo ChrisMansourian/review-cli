@@ -3,7 +3,7 @@
 import re
 from typing import List, Tuple
 from reviewer.models import FileDiff, Violation, Severity
-from reviewer.rules.base import BaseRule, register_rule
+from reviewer.rules.base import BaseRule, RuleInfo, register_rule
 
 # Comprehensive secret regex signatures
 SECRET_PATTERNS: List[Tuple[str, str, re.Pattern, Severity]] = [
@@ -78,6 +78,13 @@ class SecretDetectionRule(BaseRule):
         "accidentally committed or generated in diffs."
     )
     severity = Severity.ERROR
+
+    def catalog(self) -> List[RuleInfo]:
+        suggestion = "Store the secret in an environment variable or a secret manager, and rotate it."
+        return [
+            RuleInfo(rule_id, name, severity, f"{name}. Secrets must never be committed.", suggestion)
+            for rule_id, name, _pattern, severity in SECRET_PATTERNS
+        ]
 
     def check(self, file_diff: FileDiff) -> List[Violation]:
         # Exclude mock test data files or examples if explicitly named

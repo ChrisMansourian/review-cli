@@ -1,11 +1,30 @@
 """Base classes and registry for reviewer custom rules."""
 
 from abc import ABC, abstractmethod
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import List, Dict, Optional, Type
 from reviewer.config import ReviewerConfig, get_config
 from reviewer.models import FileDiff, Violation, Severity
 from reviewer.suppression import filter_suppressed
+
+
+@dataclass(frozen=True)
+class RuleInfo:
+    """Static metadata for one rule ID a rule class can emit."""
+    rule_id: str
+    name: str
+    severity: Severity
+    description: str
+    suggestion: str = ""
+
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "rule_id": self.rule_id,
+            "name": self.name,
+            "severity": self.severity.value,
+            "description": self.description,
+            "suggestion": self.suggestion,
+        }
 
 
 class BaseRule(ABC):
@@ -24,6 +43,10 @@ class BaseRule(ABC):
         """Optionally check git commits for quality, clarity, and formatting."""
         return []
 
+    def catalog(self) -> List[RuleInfo]:
+        """Every rule ID this class can emit (default: just its own)."""
+        return [RuleInfo(self.rule_id, self.name, self.severity, self.description)]
+
 
 class RuleRegistry:
     """Manages available and active rules."""
@@ -39,6 +62,14 @@ class RuleRegistry:
 
     def get_by_id(self, rule_id: str) -> BaseRule:
         return self._rules.get(rule_id)
+
+    def catalog(self) -> List[RuleInfo]:
+        """All rule IDs from all registered rules, de-duplicated and sorted."""
+        found: Dict[str, RuleInfo] = {}
+        for rule in self._rules.values():
+            for info in rule.catalog():
+                found.setdefault(info.rule_id, info)
+        return [found[key] for key in sorted(found)]
 
     def execute_all(
         self,

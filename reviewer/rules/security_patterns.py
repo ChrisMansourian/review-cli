@@ -13,7 +13,7 @@ import re
 from typing import Callable, List, NamedTuple, Tuple
 
 from reviewer.models import FileDiff, Severity, Violation
-from reviewer.rules.base import BaseRule, register_rule
+from reviewer.rules.base import BaseRule, RuleInfo, register_rule
 from reviewer.rules.code_quality import CODE_EXTENSIONS, _is_bypass
 from reviewer.rules.refactor_patterns import (
     _HASH_COMMENT,
@@ -21,6 +21,7 @@ from reviewer.rules.refactor_patterns import (
     _STRING_RE,
     _Hit,
     _Smell,
+    smell_catalog,
 )
 
 _TS = {".ts", ".tsx"}
@@ -61,6 +62,11 @@ TS_ANY = _Smell(
     "quality/ts-any", "TypeScript any", Severity.INFO,
     "Explicit ``any`` disables type checking.",
     "Use a concrete type, a generic, or ``unknown`` and narrow it.",
+)
+
+SMELLS = (
+    SQL_FORMAT, UNSAFE_DESERIALIZATION, TLS_VERIFY_DISABLED, INNER_HTML,
+    WEAK_HASH, UNEXPLAINED_SUPPRESSION, TS_ANY,
 )
 
 # --- regexes ----------------------------------------------------------------
@@ -185,6 +191,9 @@ class SecurityPatternsRule(BaseRule):
         "suppressions and explicit TypeScript any."
     )
     severity = Severity.ERROR
+
+    def catalog(self) -> List[RuleInfo]:
+        return smell_catalog(SMELLS)
 
     def check(self, file_diff: FileDiff) -> List[Violation]:
         ext = os.path.splitext(file_diff.file_path)[1].lower()
