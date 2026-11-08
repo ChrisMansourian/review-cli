@@ -8,6 +8,7 @@ import click
 from rich.console import Console
 from rich.markup import escape
 
+from reviewer.baseline import apply_baseline, load_baseline, write_baseline
 from reviewer.config import apply_config
 from reviewer.git_diff import get_git_diff, parse_unified_diff, get_recent_commits
 from reviewer.rules import default_registry
@@ -78,7 +79,21 @@ def _make_streams_safe() -> None:
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="Repository directory path (defaults to current working directory).",
 )
+@click.option(
+    "--update-baseline",
+    is_flag=True,
+    default=False,
+    help="Write current findings to .reviewer-baseline.json so later runs hide them.",
+)
+@click.option(
+    "--no-baseline",
+    is_flag=True,
+    default=False,
+    help="Ignore .reviewer-baseline.json and report every finding.",
+)
 def main(
+    update_baseline: bool,
+    no_baseline: bool,
     config_path: str,
     strict: bool,
     pr: bool,
@@ -115,6 +130,10 @@ def main(
     # Task 2: Local Security & Rule Enforcement Engine
     violations = default_registry.execute_all(file_diffs, commits=commits)
 
+    baselined_count = 0
+    if not no_baseline and not update_baseline:
+        violations, baselined_count = apply_baseline(violations, load_baseline(work_dir))
+
     # Compile report
     report = ReviewReport(
         target_ref=target_ref,
@@ -138,6 +157,12 @@ def main(
         reporter.print_terminal_summary(report)
 
     status_console.print(f"[dim]Saved reports to:[/dim] [cyan]{md_file}[/cyan] [dim]and[/dim] [cyan]{json_file}[/cyan]")
+
+    if baselined_count:
+        status_console.print(f"[dim]{baselined_count} baselined findings hidden[/dim]")
+    if update_baseline:
+        baseline_file = write_baseline(work_dir, violations)
+        status_console.print(f"[dim]Wrote baseline to:[/dim] [cyan]{escape(baseline_file)}[/cyan]")
 
     # PR Description generation if requested
     if pr:
