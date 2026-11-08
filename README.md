@@ -1,5 +1,7 @@
 # `reviewer` (CLI) & GitHub MCP Server Integration
 
+[![CI](https://github.com/ChrisMansourian/review-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/ChrisMansourian/review-cli/actions/workflows/ci.yml)
+
 > **Local-first developer tool for git diff inspection, automated security scanning, custom syntax guardrails, and GitHub Pull Request automation.**
 
 ---
