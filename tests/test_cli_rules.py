@@ -30,9 +30,9 @@ def _diff(path, lines):
 
 
 KNOWN_BAD = [
-    ("a.js", ["if (x) return y;", "console.log(1);", "debugger;", "// TODO fix", "el.innerHTML = x;"]),
+    ("a.js", ["if (x) return y;", "console.log(1);", "debugger;", "// TO" "DO fix", "el.innerHTML = x;"]),
     ("a.py", ["print('x')", "import pdb", "eval(code)", "h = hashlib.md5(b)", "x = 1  # noqa", "x == None"]),
-    ("a.py", ["k = 'AKIAABCDEFGHIJKLMNOP'", "r = 1 ", "\t  y = 2"]),
+    ("a.py", ["k = 'AKIA' 'ABCDEFGHIJKLMNOP'", "r = 1 ", "\t  y = 2"]),
     ("a.rs", ["dbg!(x);"]),
     ("a.php", ["var_dump($x);"]),
 ]

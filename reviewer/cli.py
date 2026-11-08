@@ -68,7 +68,7 @@ def _review_options(func):
     """Attach the review options (shared by ``review`` and the default route)."""
     options = [
         click.option("--config", "config_path", default=None, type=click.Path(dir_okay=False),
-                     help="Explicit config file (pyproject.toml uses [tool.reviewer]; other files are .reviewer.toml style)."),
+                     help="Explicit config file (pyproject.toml: [tool.reviewer]; else .reviewer.toml style)."),
         click.option("--strict", is_flag=True, default=False,
                      help="Strict mode: Exit with code 1 on ANY rule violation (including warnings)."),
         click.option("--pr", is_flag=True, default=False,

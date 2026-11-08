@@ -63,12 +63,13 @@ def find_playbook(repo_dir: str, rule_id: str) -> Optional[Tuple[str, int]]:
     path = os.path.join(repo_dir, SKILL_RELATIVE_PATH)
     if not os.path.isfile(path):
         return None
-    needle = "`" + rule_id + "`"
     try:
         with open(path, encoding="utf-8") as fh:
-            for number, line in enumerate(fh, start=1):
-                if _HEADING_RE.match(line) and needle in line:
-                    return path, number
+            lines = fh.read().splitlines()
     except OSError:
         return None
+    needle = f"`{rule_id}`"
+    for number, line in enumerate(lines, start=1):
+        if _HEADING_RE.match(line) and needle in line:
+            return path, number
     return None
