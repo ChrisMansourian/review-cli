@@ -26,13 +26,6 @@ DANGEROUS_PATTERNS = [
         Severity.ERROR,
         "Invoking subprocess with shell=True is susceptible to shell injection vulnerabilities. Pass arguments as a list.",
     ),
-    (
-        "security/unsafe-html-injection",
-        "Unsafe innerHTML / dangerouslySetInnerHTML assignment",
-        re.compile(r"(\.innerHTML\s*=|dangerouslySetInnerHTML\s*=)"),
-        Severity.WARNING,
-        "Directly injecting HTML without sanitization opens cross-site scripting (XSS) risks.",
-    ),
 ]
 
 

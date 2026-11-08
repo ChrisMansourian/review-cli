@@ -116,6 +116,11 @@ class TestNoDebugCodeRule(unittest.TestCase):
         self.assertEqual(len(violations), 1)
         self.assertEqual(violations[0].rule_id, "quality/no-console-log")
 
+    def test_bare_breakpoint_at_end_of_line_flagged(self):
+        diff = FileDiff(file_path="src/app.py", added_lines=[(3, "    breakpoint()")])  # reviewer:allow-debug
+        ids = [v.rule_id for v in self.rule.check(diff)]
+        self.assertIn("quality/no-breakpoint", ids)
+
     def test_debugger_flagged_as_error(self):
         diff = FileDiff(
             file_path="src/component.tsx",
@@ -217,6 +222,18 @@ class TestCommitMessageRule(unittest.TestCase):
         violations = self.rule.check_commits(commits)
         rule_ids = [v.rule_id for v in violations]
         self.assertIn("git/commit-message-too-long", rule_ids)
+
+    def test_generated_merge_commits_skipped(self):
+        commits = [
+            {"hash": "1", "subject": "Merge pull request #2 from someone/feat/a-very-long-branch-name-here"},
+            {"hash": "2", "subject": "Merge branch 'fix/output-encoding-and-json-stdout'"},
+            {"hash": "3", "subject": "Merge remote-tracking branch 'origin/main'"},
+        ]
+        self.assertEqual(self.rule.check_commits(commits), [])
+
+    def test_hand_written_merge_subject_still_checked(self):
+        commits = [{"hash": "1", "subject": "Merge stuff"}]
+        self.assertNotEqual(self.rule.check_commits(commits), [])
 
 
 class TestCodeQualityRule(unittest.TestCase):

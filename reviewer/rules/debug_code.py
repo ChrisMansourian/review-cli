@@ -33,7 +33,7 @@ DEBUG_PATTERNS: List[Tuple[str, str, re.Pattern, Severity, str]] = [
     (
         "quality/no-breakpoint",
         "Leftover breakpoint() or pdb call",
-        re.compile(r"\b(breakpoint\s*\(|pdb\.set_trace\s*\(|import\s+pdb)\b"),
+        re.compile(r"\bbreakpoint\s*\(|\bpdb\.set_trace\s*\(|\bimport\s+pdb\b"),
         Severity.ERROR,
         "Remove Python breakpoint before merging.",
     ),

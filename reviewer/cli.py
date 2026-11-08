@@ -1,5 +1,6 @@
 """CLI entrypoint for reviewer developer tool."""
 
+import json
 import sys
 import os
 from pathlib import Path
@@ -12,7 +13,17 @@ from reviewer.models import ReviewReport
 from reviewer.reporter import Reporter
 from reviewer.pr_generator import generate_pr_payload
 
-console = Console()
+
+def _make_streams_safe() -> None:
+    """Prevent UnicodeEncodeError on consoles that cannot encode emoji (e.g. cp1252)."""
+    for stream in (sys.stdout, sys.stderr):
+        encoding = getattr(stream, "encoding", None) or "ascii"
+        try:
+            "🔍✔".encode(encoding)
+        except (UnicodeEncodeError, LookupError):
+            reconfigure = getattr(stream, "reconfigure", None)
+            if reconfigure is not None:
+                reconfigure(errors="replace")
 
 
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
@@ -71,6 +82,9 @@ def main(
     Reviewer: Local-first developer tool for git diff inspection,
     security scanning, custom syntax enforcement, and PR generation.
     """
+    _make_streams_safe()
+    console = Console()
+    status_console = Console(stderr=True)
     work_dir = repo_path or os.getcwd()
 
     # Task 1: Git Context Analysis
@@ -104,28 +118,28 @@ def main(
 
     # Terminal rendering
     if output_format == "json":
-        import json
-        console.print_json(json.dumps(report.to_dict()))
+        click.echo(json.dumps(report.to_dict(), indent=2))
     elif output_format == "markdown":
-        console.print(reporter.generate_markdown(report))
+        click.echo(reporter.generate_markdown(report))
     else:
         reporter.print_terminal_summary(report)
 
-    console.print(f"[dim]Saved reports to:[/dim] [cyan]{md_file}[/cyan] [dim]and[/dim] [cyan]{json_file}[/cyan]")
+    status_console.print(f"[dim]Saved reports to:[/dim] [cyan]{md_file}[/cyan] [dim]and[/dim] [cyan]{json_file}[/cyan]")
 
     # PR Description generation if requested
     if pr:
-        console.print()
-        console.print("[bold magenta]📝 Generating Pull Request Description...[/bold magenta]")
+        pr_console = console if output_format == "table" else status_console
+        pr_console.print()
+        pr_console.print("[bold magenta]📝 Generating Pull Request Description...[/bold magenta]")
         pr_payload = generate_pr_payload(
             file_diffs=file_diffs,
             report=report,
             repo_dir=work_dir,
             base_branch=base,
         )
-        console.print(f"[green]✔ PR template generated at:[/green] [bold cyan]{pr_payload['file_path']}[/bold cyan]")
-        console.print(f"[dim]PR Title:[/dim] [bold]{pr_payload['title']}[/bold]")
-        console.print(
+        pr_console.print(f"[green]✔ PR template generated at:[/green] [bold cyan]{pr_payload['file_path']}[/bold cyan]")
+        pr_console.print(f"[dim]PR Title:[/dim] [bold]{pr_payload['title']}[/bold]")
+        pr_console.print(
             f"[dim]Ready for GitHub MCP server `create_pull_request` "
             f"(head: {pr_payload['head']} -> base: {pr_payload['base']})[/dim]"
         )
