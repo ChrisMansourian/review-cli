@@ -354,6 +354,9 @@ class RefactorPatternsRule(BaseRule):
             for check in checks:
                 hits.extend(check(run, ext))
 
+        if ext in _PY:
+            hits = self._prefer_ast(file_diff, hits)
+
         return [
             Violation(
                 file_path=file_diff.file_path,
@@ -367,6 +370,18 @@ class RefactorPatternsRule(BaseRule):
             )
             for smell, line_no, snippet in hits
         ]
+
+    @staticmethod
+    def _prefer_ast(file_diff: FileDiff, hits: List[_Hit]) -> List[_Hit]:
+        """Swap heuristic hits for AST-derived ones when the source parses."""
+        # Imported lazily: python_ast reuses the _Smell constants defined here.
+        from reviewer.rules import python_ast
+
+        ast_hits = python_ast.find_hits(file_diff)
+        if ast_hits is None:
+            return hits
+        kept = [hit for hit in hits if hit[0].rule_id not in python_ast.AST_RULE_IDS]
+        return kept + ast_hits
 
     # --- checks -------------------------------------------------------------
 
