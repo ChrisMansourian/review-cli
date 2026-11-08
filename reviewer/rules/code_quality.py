@@ -24,9 +24,16 @@ CODE_EXTENSIONS = {
 # config (see reviewer.config).
 
 
+_TARGETED_IGNORE_RE = re.compile(r"reviewer:ignore\[[^\]]*\]")
+
+
 def _is_bypass(line: str) -> bool:
-    """Return True if the line carries an inline reviewer bypass directive."""
-    lowered = line.lower()
+    """Return True if the line carries an inline reviewer bypass directive.
+
+    Targeted ``reviewer:ignore[rule-ids]`` is handled by the registry post-filter,
+    so it does not count as a blanket bypass here.
+    """
+    lowered = _TARGETED_IGNORE_RE.sub("", line.lower())
     return any(m in lowered for m in ("reviewer:ignore", "reviewer:allow", "noqa"))
 
 

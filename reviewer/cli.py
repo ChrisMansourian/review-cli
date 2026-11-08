@@ -8,11 +8,13 @@ import click
 from rich.console import Console
 from rich.markup import escape
 
+from reviewer.baseline import apply_baseline, load_baseline, write_baseline
 from reviewer.config import apply_config
 from reviewer.git_diff import get_git_diff, parse_unified_diff, get_recent_commits
 from reviewer.rules import default_registry
 from reviewer.models import ReviewReport
 from reviewer.reporter import Reporter
+from reviewer.formats import generate_github, generate_sarif_json
 from reviewer.pr_generator import generate_pr_payload
 
 
@@ -67,7 +69,7 @@ def _make_streams_safe() -> None:
 @click.option(
     "--format",
     "output_format",
-    type=click.Choice(["table", "json", "markdown"], case_sensitive=False),
+    type=click.Choice(["table", "json", "markdown", "sarif", "github"], case_sensitive=False),
     default="table",
     help="Terminal output format.",
 )
@@ -78,7 +80,21 @@ def _make_streams_safe() -> None:
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="Repository directory path (defaults to current working directory).",
 )
+@click.option(
+    "--update-baseline",
+    is_flag=True,
+    default=False,
+    help="Write current findings to .reviewer-baseline.json so later runs hide them.",
+)
+@click.option(
+    "--no-baseline",
+    is_flag=True,
+    default=False,
+    help="Ignore .reviewer-baseline.json and report every finding.",
+)
 def main(
+    update_baseline: bool,
+    no_baseline: bool,
     config_path: str,
     strict: bool,
     pr: bool,
@@ -115,6 +131,10 @@ def main(
     # Task 2: Local Security & Rule Enforcement Engine
     violations = default_registry.execute_all(file_diffs, commits=commits)
 
+    baselined_count = 0
+    if not no_baseline and not update_baseline:
+        violations, baselined_count = apply_baseline(violations, load_baseline(work_dir))
+
     # Compile report
     report = ReviewReport(
         target_ref=target_ref,
@@ -134,10 +154,22 @@ def main(
         click.echo(json.dumps(report.to_dict(), indent=2))
     elif output_format == "markdown":
         click.echo(reporter.generate_markdown(report))
+    elif output_format == "sarif":
+        click.echo(generate_sarif_json(report))
+    elif output_format == "github":
+        github_output = generate_github(report)
+        if github_output:
+            click.echo(github_output)
     else:
         reporter.print_terminal_summary(report)
 
     status_console.print(f"[dim]Saved reports to:[/dim] [cyan]{md_file}[/cyan] [dim]and[/dim] [cyan]{json_file}[/cyan]")
+
+    if baselined_count:
+        status_console.print(f"[dim]{baselined_count} baselined findings hidden[/dim]")
+    if update_baseline:
+        baseline_file = write_baseline(work_dir, violations)
+        status_console.print(f"[dim]Wrote baseline to:[/dim] [cyan]{escape(baseline_file)}[/cyan]")
 
     # PR Description generation if requested
     if pr:

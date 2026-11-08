@@ -133,7 +133,18 @@ reviewer --format json
 
 # Markdown representation
 reviewer --format markdown
+
+# SARIF 2.1.0 (GitHub code scanning); stdout is only the document
+reviewer --format sarif > reviewer.sarif
+
+# GitHub Actions workflow commands (::error/::warning/::notice) for PR annotations
+reviewer --format github
 ```
+
+SARIF notes: paths are repo-relative with forward slashes; each result carries a
+`primaryLocationLineHash` fingerprint so GitHub dedupes across runs. Commit-message
+violations have no file, so they are emitted without `locations` (the sha is in
+`properties.commit`); in `github` output they omit `file`/`line`.
 
 ---
 
@@ -160,6 +171,19 @@ duplicate_lines = 3
 ```
 
 `disable` and `severity` match the violation's rule ID (for example `quality/deep-nesting` or `commit/...`). Unknown keys and invalid values print a warning on stderr and are ignored. On Python 3.9/3.10 the `tomli` package is required to parse config; if it is missing, a warning is printed and defaults are used. The MCP server loads the same config from its `repo_path`.
+
+## Suppressing findings
+
+Inline directives (in any comment style):
+
+| Directive | Effect |
+| --- | --- |
+| `reviewer:ignore` | Suppress every rule on that line. |
+| `reviewer:ignore[quality/deep-nesting, security/*]` | Suppress only the listed rule IDs on that line (fnmatch globs allowed). |
+| `reviewer:ignore-file` | Within the first 5 lines of a file: suppress every rule for the whole file. |
+| `reviewer:ignore-file[style/*]` | Same, restricted to the listed rule IDs. |
+
+Baseline: `reviewer --update-baseline` writes `.reviewer-baseline.json` at the repository root (commit it). It stores line-independent fingerprints (`sha1(rule_id, file path, whitespace-normalised snippet)`), so findings survive line shifts but reappear when the offending code changes. Later runs hide baselined findings, print `N baselined findings hidden` on stderr, and hidden findings do not affect the exit code. Use `--no-baseline` to see everything. Commit-message findings are never baselined.
 
 ---
 
