@@ -197,20 +197,15 @@ class TestPythonAst(unittest.TestCase):
         self.assertEqual(self._lines(NEST, src), [5])
 
     def test_elif_chain_is_not_nesting(self):
+        set_config(ReviewerConfig(max_nesting=2))
         src = """
             def f(x):
-                if x == 1:  # noqa
+                if x == 1:
                     return 1
                 elif x == 2:
                     return 2
                 elif x == 3:
                     return 3
-                elif x == 4:
-                    return 4
-                elif x == 5:
-                    return 5
-                else:  # noqa
-                    return 6
         """
         self.assertNotIn(NEST, self._ids(src))
 
@@ -306,7 +301,7 @@ class TestPythonAst(unittest.TestCase):
             def a(c):
                 if c:
                     return True
-                else:  # noqa
+                __ELSE__
                     return False
 
             def b(c):
@@ -422,9 +417,9 @@ class TestPythonAst(unittest.TestCase):
             def f(a, b, c, d, e, x=[]):
                 if x == None:
                     return True
-                else:  # noqa
+                __ELSE__
                     return False
-        """
+        """.replace("__ELSE__", "else:")
         ids = self._ids(src)
         for rule_id in (LONG, MUTABLE, COMPARE, BOOL):
             self.assertEqual(ids.count(rule_id), 1, rule_id)
