@@ -316,7 +316,7 @@ class TestPythonAst(unittest.TestCase):
                 if c:
                     return True
                 return True
-        """
+        """.replace("__ELSE__", "else:")
         self.assertEqual(self._lines(BOOL, src), [2, 8, 13])
 
     # -- collapsible if --------------------------------------------------------
