@@ -16,7 +16,7 @@ def fingerprint(violation: Violation) -> str:
     path = violation.file_path.replace("\\", "/")
     snippet = " ".join(violation.snippet.split())
     raw = "\0".join([violation.rule_id, path, snippet])
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()  # reviewer:ignore[security/weak-hash] non-security fingerprint
 
 
 def _is_baselinable(violation: Violation) -> bool:
