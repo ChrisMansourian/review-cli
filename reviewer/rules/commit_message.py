@@ -19,6 +19,11 @@ VAGUE_MESSAGES = {
     "work in progress", "checkpoint", "quick fix", "minor fix"
 }
 
+# Subjects git/GitHub generate for merge commits; nobody authored these.
+GIT_MERGE_SUBJECT_RE = re.compile(
+    r"^Merge (pull request #\d+|(remote-tracking )?branch(es)? '|tag '|commit [0-9a-f]{7,})"
+)
+
 
 @register_rule
 class CommitMessageRule(BaseRule):
@@ -44,7 +49,7 @@ class CommitMessageRule(BaseRule):
         for commit in commits:
             subject = commit.get("subject", "").strip()
             commit_hash = commit.get("hash", "HEAD")
-            if not subject:
+            if not subject or GIT_MERGE_SUBJECT_RE.match(subject):
                 continue
 
             # Check 1: Vague or lazy message
