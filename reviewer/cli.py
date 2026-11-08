@@ -14,6 +14,7 @@ from reviewer.git_diff import get_git_diff, parse_unified_diff, get_recent_commi
 from reviewer.rules import default_registry
 from reviewer.models import ReviewReport
 from reviewer.reporter import Reporter
+from reviewer.formats import generate_github, generate_sarif_json
 from reviewer.pr_generator import generate_pr_payload
 
 
@@ -68,7 +69,7 @@ def _make_streams_safe() -> None:
 @click.option(
     "--format",
     "output_format",
-    type=click.Choice(["table", "json", "markdown"], case_sensitive=False),
+    type=click.Choice(["table", "json", "markdown", "sarif", "github"], case_sensitive=False),
     default="table",
     help="Terminal output format.",
 )
@@ -153,6 +154,12 @@ def main(
         click.echo(json.dumps(report.to_dict(), indent=2))
     elif output_format == "markdown":
         click.echo(reporter.generate_markdown(report))
+    elif output_format == "sarif":
+        click.echo(generate_sarif_json(report))
+    elif output_format == "github":
+        github_output = generate_github(report)
+        if github_output:
+            click.echo(github_output)
     else:
         reporter.print_terminal_summary(report)
 

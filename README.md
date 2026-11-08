@@ -133,7 +133,18 @@ reviewer --format json
 
 # Markdown representation
 reviewer --format markdown
+
+# SARIF 2.1.0 (GitHub code scanning); stdout is only the document
+reviewer --format sarif > reviewer.sarif
+
+# GitHub Actions workflow commands (::error/::warning/::notice) for PR annotations
+reviewer --format github
 ```
+
+SARIF notes: paths are repo-relative with forward slashes; each result carries a
+`primaryLocationLineHash` fingerprint so GitHub dedupes across runs. Commit-message
+violations have no file, so they are emitted without `locations` (the sha is in
+`properties.commit`); in `github` output they omit `file`/`line`.
 
 ---
 
