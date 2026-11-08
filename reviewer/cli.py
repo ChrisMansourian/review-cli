@@ -14,7 +14,6 @@ from reviewer.reporter import Reporter
 from reviewer.pr_generator import generate_pr_payload
 
 
-
 def _make_streams_safe() -> None:
     """Prevent UnicodeEncodeError on consoles that cannot encode emoji (e.g. cp1252)."""
     for stream in (sys.stdout, sys.stderr):

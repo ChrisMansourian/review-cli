@@ -12,7 +12,7 @@ from click.testing import CliRunner
 
 from reviewer import cli
 
-ERROR_LINE = "import pdb\n"
+ERROR_LINE = "import pdb\n"  # reviewer:allow-debug (fixture must trigger the rule)
 WARN_LINE = "print('hello')\n"
 CLEAN_LINE = "x = 1\n"
 
