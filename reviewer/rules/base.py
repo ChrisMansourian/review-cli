@@ -5,6 +5,7 @@ from dataclasses import replace
 from typing import List, Dict, Optional, Type
 from reviewer.config import ReviewerConfig, get_config
 from reviewer.models import FileDiff, Violation, Severity
+from reviewer.suppression import filter_suppressed
 
 
 class BaseRule(ABC):
@@ -55,7 +56,7 @@ class RuleRegistry:
         for file_diff in file_diffs:
             for rule in self._rules.values():
                 violations = rule.check(file_diff)
-                all_violations.extend(violations)
+                all_violations.extend(filter_suppressed(violations, file_diff))
 
         if commits:
             for rule in self._rules.values():
