@@ -8,6 +8,7 @@ from reviewer.rules.style import StyleGuideRule
 from reviewer.rules.commit_message import CommitMessageRule
 from reviewer.rules.code_quality import CodeQualityRule
 from reviewer.rules.refactor_patterns import RefactorPatternsRule
+from reviewer.rules.security_patterns import SecurityPatternsRule
 
 __all__ = [
     "BaseRule",
@@ -21,4 +22,5 @@ __all__ = [
     "CommitMessageRule",
     "CodeQualityRule",
     "RefactorPatternsRule",
+    "SecurityPatternsRule",
 ]

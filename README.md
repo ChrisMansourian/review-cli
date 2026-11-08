@@ -172,6 +172,13 @@ reviewer --format markdown
 | `quality/narrating-comment` | **Narrating Comment** | `INFO` | Comments that restate the next line (`# increment counter`). |
 | `security/no-eval` | **No eval() Execution** | `ERROR` | Prevents dangerous dynamic evaluation (`eval`, `new Function`). |
 | `security/subprocess-shell-true` | **Subprocess shell=True** | `ERROR` | Flags `subprocess.run(..., shell=True)` susceptible to command injection. |
+| `security/sql-string-format` | **SQL String Formatting** | `ERROR` | `execute`/`query`/`raw` fed an f-string, `%`, `.format()` or `+` built SQL statement. |
+| `security/unsafe-deserialization` | **Unsafe Deserialization** | `ERROR` | `pickle.load(s)`, `marshal.load(s)`, `yaml.load` without a `SafeLoader`. |
+| `security/tls-verify-disabled` | **TLS Verify Disabled** | `ERROR` | `verify=False`, `rejectUnauthorized: false`, `InsecureSkipVerify: true`, `NODE_TLS_REJECT_UNAUTHORIZED=0`. |
+| `security/inner-html` | **Raw HTML Injection** | `WARNING` | JS/TS `.innerHTML =`, `dangerouslySetInnerHTML`, `document.write(`. |
+| `security/weak-hash` | **Weak Hash** | `WARNING` | `hashlib.md5/sha1` and `createHash('md5'/'sha1')` (skipped with `usedforsecurity=False`). |
+| `quality/unexplained-suppression` | **Unexplained Suppression** | `WARNING` | `# type: ignore`, `# noqa`, `// @ts-ignore`, `// eslint-disable` with neither a rule code nor a reason. |
+| `quality/ts-any` | **TypeScript any** | `INFO` | `: any`, `as any`, `<any>` in `.ts`/`.tsx`. |
 | `style/mixed-indentation` | **Mixed Indentation** | `WARNING` | Detects lines mixing tabs and spaces. |
 | `style/line-too-long` | **Line Length Limit** | `INFO` | Flags added lines exceeding 120 characters. |
 | `git/commit-message-format` | **Clean & Clear Commits** | `WARNING` | Enforces short (<=72 chars), structured conventional commits telling what changed. Blocks vague commit messages. |
