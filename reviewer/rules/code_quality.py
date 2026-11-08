@@ -219,8 +219,6 @@ class CodeQualityRule(BaseRule):
         _flush(chain_start_idx, chain_len)
         return violations
 
-        return violations
-
     def _check_magic_literals(
         self,
         lines: List[Tuple[int, str]],

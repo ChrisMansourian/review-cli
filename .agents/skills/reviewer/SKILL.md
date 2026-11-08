@@ -37,6 +37,8 @@ When commanded by the user (e.g., `[PROMPT: Read .reviewer/report.md and fix the
    - For **`security/hardcoded-secrets`**: Remove the secret and replace with environment variable access (`os.environ.get(...)`, `process.env....`).
    - For **`quality/no-debug-code`**: Delete leftover `console.log`, `print()`, `debugger;`, or resolve `TODO` comments.
    - For **`style/formatting`**: Adjust indentation and line lengths.
+   - For any other **`quality/*`** rule (refactor patterns such as deep nesting, swallowed exceptions,
+     long parameter lists, unreachable code): follow the matching playbook in the `refactor` skill.
 3. Re-run `reviewer` to ensure 0 errors remain.
 
 ### 3. Creating Pull Requests via GitHub MCP

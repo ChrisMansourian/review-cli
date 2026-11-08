@@ -148,6 +148,28 @@ reviewer --format markdown
 | `quality/no-debugger` | **No Debugger** | `ERROR` | Flags interactive `debugger;` breakpoints left in the diff. |
 | `quality/no-python-print` | **No print() in Python** | `WARNING` | Flags leftover `print()` in core logic (exempts CLI tools and scripts). |
 | `quality/no-todo-comments` | **No Unresolved TODOs** | `INFO` | Flags untracked `TODO`/`FIXME` comments (exempts tracked items like `TODO(#123)`). |
+| `quality/unnecessary-else-after-return` | **Unnecessary Else** | `WARNING` | Flags `else` blocks directly after `return`/`raise`/`throw`. |
+| `quality/complex-if-else-chain` | **Complex If/Elif Chain** | `WARNING` | Flags 3+ `elif`/`else if` branches that should be a dispatch dict or `match`. |
+| `quality/duplicated-code-pattern` | **Duplicated Code** | `WARNING` | Flags 3+ near-identical adjacent lines. |
+| `quality/magic-literal-repetition` | **Magic Literal Repetition** | `INFO` | Flags the same literal repeated 3+ times. |
+| `quality/redundant-boolean-return` | **Redundant Boolean Return** | `WARNING` | `if c: return True else: return False`, `True if c else False`, `c ? true : false`. |
+| `quality/nested-ternary` | **Nested Ternary** | `WARNING` | Conditional expressions nested inside each other (Python, JS/TS, Java, C#, C/C++, PHP). |
+| `quality/deep-nesting` | **Deep Nesting** | `WARNING` | Control flow nested 4+ levels; use guard clauses. |
+| `quality/long-parameter-list` | **Long Parameter List** | `WARNING` | Functions with 5+ positional params (keyword-only and `self` excluded). |
+| `quality/mutable-default-argument` | **Mutable Default Argument** | `ERROR` | Python `def f(x=[])` / `{}` / `set()` defaults. |
+| `quality/bare-except` | **Bare Except** | `WARNING` | Python `except:` with no exception type. |
+| `quality/swallowed-exception` | **Swallowed Exception** | `WARNING` | `except: pass`, empty `catch {}`, `.catch(() => {})`. |
+| `quality/unreachable-code` | **Unreachable Code** | `WARNING` | Statements after an unconditional `return`/`raise`/`throw`/`break`/`continue`. |
+| `quality/god-function` | **Oversized Function** | `WARNING` | Function bodies over 50 non-blank lines. |
+| `quality/loose-equality` | **Loose Equality** | `WARNING` | JS/TS `==`/`!=` (except `== null`). |
+| `quality/non-idiomatic-comparison` | **Non-Idiomatic Comparison** | `INFO` | Python `== None`, `== True`, `len(x) == 0`. |
+| `quality/range-len-loop` | **range(len()) Loop** | `INFO` | Use `enumerate()` / `zip()`. |
+| `quality/manual-accumulation-loop` | **Manual Accumulation Loop** | `INFO` | Loops that only `append`/`push`; use a comprehension or `.filter().map()`. |
+| `quality/string-concatenation` | **String Concatenation** | `INFO` | `"a" + x + "b"`; use f-strings / template literals. |
+| `quality/await-in-loop` | **Await in Loop** | `INFO` | Sequential `await` in a loop; consider `Promise.all` / `asyncio.gather`. |
+| `quality/collapsible-if` | **Collapsible If** | `INFO` | Nested `if` that is the sole statement of its parent. |
+| `quality/commented-out-code` | **Commented-Out Code** | `INFO` | Comment blocks that are code. |
+| `quality/narrating-comment` | **Narrating Comment** | `INFO` | Comments that restate the next line (`# increment counter`). |
 | `security/no-eval` | **No eval() Execution** | `ERROR` | Prevents dangerous dynamic evaluation (`eval`, `new Function`). |
 | `security/subprocess-shell-true` | **Subprocess shell=True** | `ERROR` | Flags `subprocess.run(..., shell=True)` susceptible to command injection. |
 | `style/mixed-indentation` | **Mixed Indentation** | `WARNING` | Detects lines mixing tabs and spaces. |
