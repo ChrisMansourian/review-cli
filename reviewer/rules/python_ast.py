@@ -115,20 +115,26 @@ def _is_mutable_default(node: ast.AST) -> bool:
     return False
 
 
+def _is_none_or_bool(node: ast.AST) -> bool:
+    return isinstance(node, ast.Constant) and (node.value is None or isinstance(node.value, bool))
+
+
+def _is_len_zero_check(op: ast.cmpop, left: ast.AST, right: ast.AST) -> bool:
+    return (
+        isinstance(op, (ast.Eq, ast.NotEq, ast.Gt))
+        and _is_call_to(left, "len")
+        and isinstance(right, ast.Constant)
+        and right.value == 0
+        and not isinstance(right.value, bool)
+    )
+
+
 def _non_idiomatic(node: ast.Compare) -> bool:
     operands = [node.left] + list(node.comparators)
     for op, left, right in zip(node.ops, operands, operands[1:]):
-        if isinstance(op, (ast.Eq, ast.NotEq)):
-            for side in (left, right):
-                if isinstance(side, ast.Constant) and (side.value is None or isinstance(side.value, bool)):
-                    return True
-        if (
-            isinstance(op, (ast.Eq, ast.NotEq, ast.Gt))
-            and _is_call_to(left, "len")
-            and isinstance(right, ast.Constant)
-            and right.value == 0
-            and not isinstance(right.value, bool)
-        ):
+        if isinstance(op, (ast.Eq, ast.NotEq)) and (_is_none_or_bool(left) or _is_none_or_bool(right)):
+            return True
+        if _is_len_zero_check(op, left, right):
             return True
     return False
 

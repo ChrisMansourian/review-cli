@@ -199,7 +199,7 @@ class TestPythonAst(unittest.TestCase):
     def test_elif_chain_is_not_nesting(self):
         src = """
             def f(x):
-                if x == 1:
+                if x == 1:  # noqa
                     return 1
                 elif x == 2:
                     return 2
@@ -209,7 +209,7 @@ class TestPythonAst(unittest.TestCase):
                     return 4
                 elif x == 5:
                     return 5
-                else:
+                else:  # noqa
                     return 6
         """
         self.assertNotIn(NEST, self._ids(src))
@@ -231,7 +231,7 @@ class TestPythonAst(unittest.TestCase):
             def f(x):
                 if x:
                     for i in x:
-                        print(i)
+                        use(i)
         """
         self.assertNotIn(NEST, self._ids(src))
         set_config(ReviewerConfig(max_nesting=2))
@@ -258,11 +258,11 @@ class TestPythonAst(unittest.TestCase):
                 for x in xs:
                     if x:
                         continue
-                        print(x)
+                        use(x)
                     break
-                    print(1)
+                    use(1)
                 return 1
-                print(2)
+                use(2)
         """
         self.assertEqual(self._lines(DEAD, src), [5, 7, 9])
 
@@ -306,7 +306,7 @@ class TestPythonAst(unittest.TestCase):
             def a(c):
                 if c:
                     return True
-                else:
+                else:  # noqa
                     return False
 
             def b(c):
@@ -422,7 +422,7 @@ class TestPythonAst(unittest.TestCase):
             def f(a, b, c, d, e, x=[]):
                 if x == None:
                     return True
-                else:
+                else:  # noqa
                     return False
         """
         ids = self._ids(src)
