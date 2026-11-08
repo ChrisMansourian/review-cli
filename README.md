@@ -137,6 +137,32 @@ reviewer --format markdown
 
 ---
 
+## Configuration
+
+`reviewer` reads settings from the `[tool.reviewer]` table of `pyproject.toml` in the repository root (`--path`, default: the working directory). If that table is absent it falls back to a `.reviewer.toml` file in the same directory, which uses the same keys at the top level. Use `--config PATH` to load an explicit file (a file named `pyproject.toml` uses its `[tool.reviewer]` table; any other file is read as `.reviewer.toml`). With no config file, behaviour is unchanged.
+
+```toml
+[tool.reviewer]
+disable = ["quality/narrating-comment", "style/*"]      # fnmatch globs on rule_id
+ignore_paths = ["tests/fixtures/**", "migrations/**"]   # globs on repo-relative paths; ** spans directories
+
+[tool.reviewer.severity]
+"quality/god-function" = "INFO"                          # ERROR | WARNING | INFO
+
+[tool.reviewer.thresholds]                               # values shown are the defaults
+max_params = 4
+max_nesting = 4
+max_function_lines = 50
+max_line_length = 120
+elif_chain = 3
+literal_repeat = 3
+duplicate_lines = 3
+```
+
+`disable` and `severity` match the violation's rule ID (for example `quality/deep-nesting` or `commit/...`). Unknown keys and invalid values print a warning on stderr and are ignored. On Python 3.9/3.10 the `tomli` package is required to parse config; if it is missing, a warning is printed and defaults are used. The MCP server loads the same config from its `repo_path`.
+
+---
+
 ## 🛡️ Built-in Custom Rules (The "Anti-AI-Mistake" Guardrails)
 
 | Rule ID | Name | Severity | Description |

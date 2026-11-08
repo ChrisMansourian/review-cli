@@ -12,6 +12,7 @@ from collections import Counter
 from typing import List, Tuple
 
 from reviewer.models import FileDiff, Violation, Severity
+from reviewer.config import get_config
 from reviewer.rules.base import BaseRule, register_rule
 
 CODE_EXTENSIONS = {
@@ -19,12 +20,8 @@ CODE_EXTENSIONS = {
     ".py", ".rb", ".go", ".rs", ".php", ".c", ".cpp", ".cs", ".java",
 }
 
-# Minimum chain length before flagging elif / else-if chains
-_ELIF_CHAIN_THRESHOLD = 3
-# Minimum occurrences of the same literal before flagging
-_LITERAL_REPEAT_THRESHOLD = 3
-# Minimum number of near-duplicate adjacent lines before flagging
-_DUPLICATE_LINE_THRESHOLD = 3
+# Thresholds (elif chain, literal repeat, duplicate lines) come from the active
+# config (see reviewer.config).
 
 
 def _is_bypass(line: str) -> bool:
@@ -165,7 +162,7 @@ class CodeQualityRule(BaseRule):
         _ELSE_ONLY_RE = re.compile(r"^\s*(\}\s*)?else\s*[\{:](?!\s*if\b)", re.IGNORECASE)
 
         def _flush(start_idx: int, length: int) -> None:
-            if start_idx >= 0 and length >= _ELIF_CHAIN_THRESHOLD:
+            if start_idx >= 0 and length >= get_config().elif_chain:
                 violations.append(
                     Violation(
                         file_path=path,
@@ -244,7 +241,7 @@ class CodeQualityRule(BaseRule):
                     first_occurrence[lit] = line_no
 
         for lit, count in counts.items():
-            if count >= _LITERAL_REPEAT_THRESHOLD:
+            if count >= get_config().literal_repeat:
                 violations.append(
                     Violation(
                         file_path=path,
@@ -304,7 +301,7 @@ class CodeQualityRule(BaseRule):
             if prev_norm == curr_norm:
                 run_len += 1
             else:
-                if run_len >= _DUPLICATE_LINE_THRESHOLD:
+                if run_len >= get_config().duplicate_lines:
                     violations.append(
                         Violation(
                             file_path=path,
@@ -327,7 +324,7 @@ class CodeQualityRule(BaseRule):
                 run_len = 1
 
         # Flush trailing run
-        if run_len >= _DUPLICATE_LINE_THRESHOLD:
+        if run_len >= get_config().duplicate_lines:
             violations.append(
                 Violation(
                     file_path=path,

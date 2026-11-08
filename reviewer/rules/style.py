@@ -4,6 +4,7 @@ import os
 import re
 from typing import List
 from reviewer.models import FileDiff, Violation, Severity
+from reviewer.config import get_config
 from reviewer.rules.base import BaseRule, register_rule
 
 CODE_EXTENSIONS = {
@@ -37,10 +38,9 @@ class StyleGuideRule(BaseRule):
     description = "Checks line length, trailing whitespace, and indentation consistency."
     severity = Severity.WARNING
 
-    MAX_LINE_LENGTH = 120
-
     def check(self, file_diff: FileDiff) -> List[Violation]:
         violations: List[Violation] = []
+        max_line_length = get_config().max_line_length
         ext = os.path.splitext(file_diff.file_path)[1].lower()
 
         # Markdown / docs / text files can have long links or wrapping
@@ -87,7 +87,7 @@ class StyleGuideRule(BaseRule):
                 )
 
             # Line length check
-            if not is_doc and len(line_text) > self.MAX_LINE_LENGTH:
+            if not is_doc and len(line_text) > max_line_length:
                 # Don't flag URLs or long strings
                 if not re.search(r"https?://", line_text):
                     violations.append(
@@ -97,9 +97,9 @@ class StyleGuideRule(BaseRule):
                             rule_id="style/line-too-long",
                             rule_name="Line Exceeds Length Limit",
                             severity=Severity.INFO,
-                            message=f"Line length ({len(line_text)}) exceeds maximum of {self.MAX_LINE_LENGTH} characters.",
+                            message=f"Line length ({len(line_text)}) exceeds maximum of {max_line_length} characters.",
                             snippet=line_text[:80] + "...",
-                            suggestion="Refactor or wrap line to conform to 120 character limit.",
+                            suggestion=f"Refactor or wrap line to conform to {max_line_length} character limit.",
                         )
                     )
 

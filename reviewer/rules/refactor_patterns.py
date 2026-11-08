@@ -16,6 +16,7 @@ from dataclasses import dataclass, replace
 from typing import Callable, Dict, Iterator, List, Optional, Set, Tuple
 
 from reviewer.models import FileDiff, Severity, Violation
+from reviewer.config import get_config
 from reviewer.rules.base import BaseRule, register_rule
 from reviewer.rules.code_quality import CODE_EXTENSIONS, _is_bypass
 
@@ -27,12 +28,8 @@ _HASH_COMMENT = {".py", ".rb"}
 _TERNARY_LANGS = _JS | {".java", ".cs", ".c", ".cpp", ".php"}
 _CONCAT_LANGS = _PY | _JS | {".java", ".cs", ".rb"}
 
-# Flag functions with more positional parameters than this.
-_MAX_PARAMS = 4
-# Flag control-flow nesting at or beyond this depth.
-_MAX_NESTING = 4
-# Flag functions whose body exceeds this many non-blank lines.
-_MAX_FUNCTION_LINES = 50
+# Thresholds (max params, nesting depth, function lines) come from the active
+# config (see reviewer.config); defaults live in ReviewerConfig.
 # How many lines a multi-line signature may span before we give up.
 _SIGNATURE_LOOKAHEAD = 15
 # Narrating comments longer than this are assumed to carry real intent.
@@ -64,12 +61,12 @@ NESTED_TERNARY = _Smell(
 )
 DEEP_NESTING = _Smell(
     "quality/deep-nesting", "Deeply Nested Control Flow", Severity.WARNING,
-    f"Control flow is nested {_MAX_NESTING}+ levels deep.",
+    "Control flow is nested too deeply.",
     "Invert conditions into guard clauses that return early, or extract the inner block.",
 )
 LONG_PARAMS = _Smell(
     "quality/long-parameter-list", "Long Parameter List", Severity.WARNING,
-    f"Function takes more than {_MAX_PARAMS} positional parameters.",
+    "Function takes too many positional parameters.",
     "Group related values into an options object / dataclass, or make extras keyword-only.",
 )
 MUTABLE_DEFAULT = _Smell(
@@ -139,7 +136,7 @@ NARRATING_COMMENT = _Smell(
 )
 GOD_FUNCTION = _Smell(
     "quality/god-function", "Oversized Function", Severity.WARNING,
-    f"Function body exceeds {_MAX_FUNCTION_LINES} lines.",
+    "Function body is too long.",
     "Split it by responsibility so the top-level function reads like a table of contents.",
 )
 
@@ -427,6 +424,7 @@ class RefactorPatternsRule(BaseRule):
 
     def _check_deep_nesting(self, run: List[Line], ext: str) -> List[_Hit]:
         hits: List[_Hit] = []
+        max_nesting = get_config().max_nesting
         stack: List[int] = []
         flagged = False
         for line_no, text in run:
@@ -440,14 +438,16 @@ class RefactorPatternsRule(BaseRule):
                 flagged = False
             if _BLOCK_OPENER_RE.match(stripped):
                 stack.append(indent)
-                if len(stack) >= _MAX_NESTING and not flagged and not _is_bypass(text):
-                    hits.append((DEEP_NESTING, line_no, text))
+                if len(stack) >= max_nesting and not flagged and not _is_bypass(text):
+                    smell = replace(DEEP_NESTING, message=f"Control flow is nested {max_nesting}+ levels deep.")
+                    hits.append((smell, line_no, text))
                     flagged = True
         return hits
 
     def _check_signatures(self, run: List[Line], ext: str) -> List[_Hit]:
         hits: List[_Hit] = []
         patterns = _SIGNATURE_RES.get(_EXT_TO_SIG.get(ext, ""), [])
+        max_params = get_config().max_params
         for i, (line_no, text) in enumerate(run):
             if _is_bypass(text):
                 continue
@@ -458,10 +458,10 @@ class RefactorPatternsRule(BaseRule):
             if params is None:
                 continue
             positional = _positional_params(params)
-            if len(positional) > _MAX_PARAMS:
+            if len(positional) > max_params:
                 smell = replace(
                     LONG_PARAMS,
-                    message=f"Function takes {len(positional)} positional parameters (max {_MAX_PARAMS}).",
+                    message=f"Function takes {len(positional)} positional parameters (max {max_params}).",
                 )
                 hits.append((smell, line_no, text))
             if ext in _PY and any(_MUTABLE_DEFAULT_RE.search(p) for p in _split_top_level(params)):
@@ -660,6 +660,7 @@ class RefactorPatternsRule(BaseRule):
     def _check_god_function(self, run: List[Line], ext: str) -> List[_Hit]:
         hits: List[_Hit] = []
         patterns = _SIGNATURE_RES.get(_EXT_TO_SIG.get(ext, ""), [])
+        max_lines = get_config().max_function_lines
         for i, (line_no, text) in enumerate(run):
             code = _strip_strings(text)
             if _is_bypass(text) or not any(p.match(code) for p in patterns):
@@ -669,10 +670,10 @@ class RefactorPatternsRule(BaseRule):
                 body = sum(1 for _, t in run[i + 1:end] if t.strip())
             else:
                 body = self._braced_body_length(run, i, ext)
-            if body > _MAX_FUNCTION_LINES:
+            if body > max_lines:
                 smell = replace(
                     GOD_FUNCTION,
-                    message=f"Function body is {body} lines (max {_MAX_FUNCTION_LINES}).",
+                    message=f"Function body is {body} lines (max {max_lines}).",
                 )
                 hits.append((smell, line_no, text))
         return hits
