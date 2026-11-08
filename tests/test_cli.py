@@ -17,6 +17,19 @@ WARN_LINE = "print('hello')\n"
 CLEAN_LINE = "x = 1\n"
 
 
+def _runner():
+    """CliRunner with stderr kept out of result.stdout.
+
+    click < 8.2 (the newest available on Python 3.9) mixes stderr into stdout
+    unless ``mix_stderr=False``; click >= 8.2 always separates them and removed
+    the argument.
+    """
+    try:
+        return CliRunner(mix_stderr=False)
+    except TypeError:
+        return CliRunner()
+
+
 def _git(args, cwd):
     subprocess.run(["git"] + args, cwd=cwd, check=True, capture_output=True)
 
@@ -38,8 +51,7 @@ class CliTests(unittest.TestCase):
     def _run(self, content, *extra):
         with tempfile.TemporaryDirectory() as tmp:
             _make_repo(tmp, content)
-            runner = CliRunner()
-            return runner.invoke(cli.main, ["--path", tmp, "--format", "json"] + list(extra))
+            return _runner().invoke(cli.main, ["--path", tmp, "--format", "json"] + list(extra))
 
     def test_json_stdout_is_only_the_document(self):
         result = self._run(CLEAN_LINE)
